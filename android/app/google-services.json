@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "751932178476",
+    "project_id": "grainhero-app",
+    "storage_bucket": "grainhero-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:751932178476:android:18304c942cd44b391f9189",
+        "android_client_info": {
+          "package_name": "com.example.grainhero_technician_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDSCZaFaxtT63gh5T7bfuf7Jpb_MnAz1QQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
