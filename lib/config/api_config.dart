@@ -7,13 +7,13 @@ class ApiConfig {
   
   /// Set to TRUE for deployed builds (Firebase App Distribution)
   /// Set to FALSE for local development with USB/WiFi
-  static const bool useDeployedBackend = true;
+  static const bool useDeployedBackend = false;
 
   /// Deployed backend URL (Render)
   static const String deployedBaseUrl = 'https://grainhero.onrender.com';
 
   /// Local development IP (only used when useDeployedBackend = false)
-  static const String? physicalDeviceIp = '192.168.100.160';
+  static const String? physicalDeviceIp = '192.168.100.211';
 
   // ============================================
   // BASE URLS (IMPORTANT: Auth uses NO /api prefix!)

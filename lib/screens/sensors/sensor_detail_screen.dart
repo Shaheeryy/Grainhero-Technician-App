@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:grainhero_technician_app/config/app_theme.dart';
-import 'package:grainhero_technician_app/models/sensor_model.dart';
-import 'package:grainhero_technician_app/services/sensor_service.dart';
-import 'package:grainhero_technician_app/widgets/error_widget.dart';
-import 'package:grainhero_technician_app/widgets/status_badge.dart';
-import 'package:grainhero_technician_app/widgets/temperature_chart.dart';
+import '../../config/app_theme.dart';
+import '../../models/sensor_model.dart';
+import '../../services/sensor_service.dart';
+import '../../widgets/error_widget.dart';
+import '../../widgets/status_badge.dart';
+import '../../widgets/temperature_chart.dart';
 import 'package:intl/intl.dart';
 
 class SensorDetailScreen extends StatefulWidget {
@@ -16,101 +16,74 @@ class SensorDetailScreen extends StatefulWidget {
 }
 
 class _SensorDetailScreenState extends State<SensorDetailScreen> {
-  final _sensorService = SensorService();
-  SensorModel? _sensor;
+  final _svc = SensorService();
+  SensorDevice? _sensor;
   bool _loading = true;
   String? _error;
-  List<Map<String, dynamic>> _readings = [];
+  List<SensorReading> _readings = [];
   bool _loadingReadings = false;
-  String? _readingsError;
 
   @override
   void initState() {
     super.initState();
-    _loadSensorDetails();
+    _load();
   }
 
-  Future<void> _loadSensorDetails() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
     try {
-      final sensor = await _sensorService.fetchSensorDetails(widget.sensorId);
+      final sensor = await _svc.fetchSensorDetails(widget.sensorId);
       if (!mounted) return;
-      setState(() {
-        _sensor = sensor;
-        _loading = false;
-      });
+      setState(() { _sensor = sensor; _loading = false; });
       _loadReadings();
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _error = e.toString();
-        _loading = false;
-      });
+      setState(() { _error = e.toString().replaceAll('Exception: ', ''); _loading = false; });
     }
   }
 
   Future<void> _loadReadings() async {
-    setState(() {
-      _loadingReadings = true;
-      _readingsError = null;
-    });
-
+    setState(() => _loadingReadings = true);
     try {
-      final result = await _sensorService.getSensorReadings(
-        widget.sensorId,
-        limit: 50,
-      );
+      final result = await _svc.getSensorReadings(widget.sensorId, limit: 50);
       if (!mounted) return;
       setState(() {
-        _readings = (result['readings'] as List<dynamic>?)
-                ?.map((r) => r as Map<String, dynamic>)
-                .toList() ??
-            [];
+        _readings = result['readings'] as List<SensorReading>? ?? [];
         _loadingReadings = false;
       });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _loadingReadings = false;
-        _readingsError = e.toString();
-      });
+    } catch (_) {
+      if (mounted) setState(() => _loadingReadings = false);
     }
   }
 
-  List<ChartDataPoint> _getTemperatureData() {
-    final tempReadings = _readings
-        .where((r) => r['temperature'] != null)
-        .toList()
-        .reversed
-        .take(24)
-        .toList();
-
-    return tempReadings.asMap().entries.map((entry) {
-      return ChartDataPoint(
-        x: entry.key.toDouble(),
-        y: (entry.value['temperature'] as num).toDouble(),
-      );
-    }).toList();
+  // Chart helpers
+  List<ChartDataPoint> _chartData(double? Function(SensorReading) extractor) {
+    final valid = _readings.where((r) => extractor(r) != null).toList().reversed.take(24).toList();
+    return valid.asMap().entries.map((e) => ChartDataPoint(x: e.key.toDouble(), y: extractor(e.value)!)).toList();
   }
 
-  List<ChartDataPoint> _getHumidityData() {
-    final humidityReadings = _readings
-        .where((r) => r['humidity'] != null)
-        .toList()
-        .reversed
-        .take(24)
-        .toList();
+  String _timeAgo(DateTime? d) {
+    if (d == null) return '--';
+    final diff = DateTime.now().difference(d);
+    if (diff.inMinutes < 1) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
+  }
 
-    return humidityReadings.asMap().entries.map((entry) {
-      return ChartDataPoint(
-        x: entry.key.toDouble(),
-        y: (entry.value['humidity'] as num).toDouble(),
-      );
-    }).toList();
+  Color _thresholdColor(String? status) {
+    if (status == 'critical') return AppTheme.errorColor;
+    if (status == 'warning') return AppTheme.warningColor;
+    return AppTheme.successColor;
+  }
+
+  Color _riskColor(String? cls) {
+    switch (cls?.toLowerCase()) {
+      case 'spoiled': return AppTheme.errorColor;
+      case 'risky': return AppTheme.warningColor;
+      case 'safe': return AppTheme.successColor;
+      default: return AppTheme.textSecondary;
+    }
   }
 
   @override
@@ -118,616 +91,342 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        backgroundColor: AppTheme.surfaceColor,
-        elevation: 0,
-        title: const Text(
-          'Sensor Details',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textPrimary,
-          ),
-        ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: AppTheme.textPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: AppTheme.textSecondary),
-            onPressed: _loading ? null : _loadSensorDetails,
-          ),
-        ],
+        backgroundColor: AppTheme.surfaceColor, elevation: 0,
+        title: const Text('Sensor Details', style: TextStyle(fontWeight: FontWeight.w600)),
+        leading: IconButton(icon: const Icon(Icons.arrow_back_ios), onPressed: () => Navigator.pop(context)),
+        actions: [IconButton(icon: const Icon(Icons.refresh, color: AppTheme.textSecondary), onPressed: _loading ? null : _load)],
       ),
       body: _loading
-          ? const Center(
-              child: CircularProgressIndicator(color: AppTheme.primaryColor),
-            )
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor))
           : _error != null
-              ? AppErrorWidget(
-                  message: _error!,
-                  onRetry: _loadSensorDetails,
-                )
+              ? AppErrorWidget(message: _error!, onRetry: _load)
               : _sensor == null
                   ? const Center(child: Text('Sensor not found'))
                   : RefreshIndicator(
-                      onRefresh: _loadSensorDetails,
-                      color: AppTheme.primaryColor,
+                      onRefresh: _load, color: AppTheme.primaryColor,
                       child: SingleChildScrollView(
                         physics: const AlwaysScrollableScrollPhysics(),
                         padding: const EdgeInsets.all(AppTheme.spacingL),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Header Card
-                            _buildHeaderCard(),
-                            const SizedBox(height: AppTheme.spacingL),
-
-                            // Current Readings
-                            _buildCurrentReadings(),
-                            const SizedBox(height: AppTheme.spacingL),
-
-                            // Temperature Chart
-                            if (_readings.isNotEmpty && _getTemperatureData().isNotEmpty) ...[
-                              TemperatureChart(
-                                title: 'Temperature History (Last 24 readings)',
-                                dataSeries: [
-                                  ChartDataSeries.temperature(
-                                    'Temperature',
-                                    _getTemperatureData(),
-                                  ),
-                                ],
-                                height: 180,
-                              ),
-                              const SizedBox(height: AppTheme.spacingL),
-                            ],
-
-                            // Humidity Chart
-                            if (_readings.isNotEmpty && _getHumidityData().isNotEmpty) ...[
-                              TemperatureChart(
-                                title: 'Humidity History (Last 24 readings)',
-                                dataSeries: [
-                                  ChartDataSeries.humidity(
-                                    'Humidity',
-                                    _getHumidityData(),
-                                  ),
-                                ],
-                                height: 180,
-                              ),
-                              const SizedBox(height: AppTheme.spacingL),
-                            ],
-
-                            // Recent Readings List
-                            _buildReadingsList(),
-                            const SizedBox(height: AppTheme.spacingL),
-
-                            // Action Buttons (sensor.calibrate & sensor.maintain)
-                            _buildActionButtons(),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          _headerCard(),
+                          const SizedBox(height: AppTheme.spacingL),
+                          _liveReadingsCard(),
+                          const SizedBox(height: AppTheme.spacingL),
+                          if (_sensor!.latestReading?.derivedMetrics != null) ...[
+                            _riskCard(), const SizedBox(height: AppTheme.spacingL),
                           ],
-                        ),
+                          if (_sensor!.latestReading?.ambient != null) ...[
+                            _ambientCard(), const SizedBox(height: AppTheme.spacingL),
+                          ],
+                          if (_sensor!.latestReading?.actuationState != null) ...[
+                            _fanStatusCard(), const SizedBox(height: AppTheme.spacingL),
+                          ],
+                          // Charts
+                          ..._buildCharts(),
+                          _deviceHealthCard(),
+                          const SizedBox(height: AppTheme.spacingL),
+                          _calibrationCard(),
+                          const SizedBox(height: AppTheme.spacingL),
+                          _actionButtons(),
+                        ]),
                       ),
                     ),
     );
   }
 
-  Widget _buildHeaderCard() {
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingXL),
-      decoration: AppTheme.cardDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                ),
-                child: const Icon(
-                  Icons.sensors,
-                  color: AppTheme.primaryColor,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: AppTheme.spacingL),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _sensor!.name,
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: AppTheme.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _sensor!.type,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              StatusBadge(status: _sensor!.status),
-            ],
-          ),
-          const SizedBox(height: AppTheme.spacingL),
-          const Divider(height: 1),
-          const SizedBox(height: AppTheme.spacingL),
-          Row(
-            children: [
-              const Icon(
-                Icons.location_on_outlined,
-                size: 16,
-                color: AppTheme.textSecondary,
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  _sensor!.siteName,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: AppTheme.textSecondary,
-                  ),
-                ),
-              ),
-              const Icon(
-                Icons.access_time,
-                size: 16,
-                color: AppTheme.textSecondary,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                'Updated ${_formatTimeAgo(_sensor!.lastReading)}',
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: AppTheme.textHint,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCurrentReadings() {
+  Widget _card(String title, List<Widget> children) {
     return Container(
       padding: const EdgeInsets.all(AppTheme.spacingL),
       decoration: AppTheme.cardDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Current Readings',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textPrimary,
-            ),
-          ),
-          const SizedBox(height: AppTheme.spacingL),
-          Row(
-            children: [
-              Expanded(
-                child: _buildReadingTile(
-                  icon: Icons.thermostat_outlined,
-                  color: AppTheme.temperatureOrange,
-                  label: 'Temperature',
-                  value: _sensor!.temperature != null
-                      ? '${_sensor!.temperature!.toStringAsFixed(1)}°C'
-                      : 'N/A',
-                ),
-              ),
-              const SizedBox(width: AppTheme.spacingM),
-              Expanded(
-                child: _buildReadingTile(
-                  icon: Icons.water_drop_outlined,
-                  color: AppTheme.humidityBlue,
-                  label: 'Humidity',
-                  value: _sensor!.humidity != null
-                      ? '${_sensor!.humidity!.toStringAsFixed(1)}%'
-                      : 'N/A',
-                ),
-              ),
-            ],
-          ),
-          if (_sensor!.spoilageRisk != null) ...[
-            const SizedBox(height: AppTheme.spacingM),
-            _buildReadingTile(
-              icon: Icons.warning_amber_outlined,
-              color: _sensor!.spoilageRisk! > 50
-                  ? AppTheme.errorColor
-                  : AppTheme.warningColor,
-              label: 'Spoilage Risk',
-              value: '${_sensor!.spoilageRisk!.toStringAsFixed(1)}%',
-              fullWidth: true,
-            ),
-          ],
-        ],
-      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+        const SizedBox(height: AppTheme.spacingL),
+        ...children,
+      ]),
     );
   }
 
-  Widget _buildReadingTile({
-    required IconData icon,
-    required Color color,
-    required String label,
-    required String value,
-    bool fullWidth = false,
-  }) {
+  Widget _headerCard() {
+    final s = _sensor!;
     return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingL),
+      padding: const EdgeInsets.all(AppTheme.spacingXL), decoration: AppTheme.cardDecoration,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(color: AppTheme.primaryColor.withOpacity(0.1), borderRadius: BorderRadius.circular(AppTheme.radiusMedium)),
+            child: const Icon(Icons.sensors, color: AppTheme.primaryColor, size: 28),
+          ),
+          const SizedBox(width: AppTheme.spacingL),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(s.deviceName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.textPrimary)),
+            const SizedBox(height: 4),
+            Text(s.deviceId, style: const TextStyle(fontSize: 13, color: AppTheme.textSecondary)),
+          ])),
+          StatusBadge(status: s.status),
+        ]),
+        const SizedBox(height: AppTheme.spacingL), const Divider(height: 1), const SizedBox(height: AppTheme.spacingL),
+        Wrap(spacing: 16, runSpacing: 8, children: [
+          if (s.model != null) _infoChip(Icons.memory, '${s.model}'),
+          if (s.manufacturer != null) _infoChip(Icons.business, '${s.manufacturer}'),
+          if (s.firmwareVersion != null) _infoChip(Icons.system_update, 'v${s.firmwareVersion}'),
+          if (s.siloName != null) _infoChip(Icons.location_on_outlined, s.siloName!),
+        ]),
+      ]),
+    );
+  }
+
+  Widget _infoChip(IconData icon, String text) {
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(icon, size: 14, color: AppTheme.textSecondary),
+      const SizedBox(width: 4),
+      Text(text, style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+    ]);
+  }
+
+  Widget _liveReadingsCard() {
+    final s = _sensor!;
+    return _card('Live Readings', [
+      Row(children: [
+        Expanded(child: _metricTile(Icons.thermostat_outlined, AppTheme.temperatureOrange, 'Temperature',
+            s.latestTemperature != null ? '${s.latestTemperature!.toStringAsFixed(1)}°C' : 'N/A',
+            thresholdStatus: s.thresholds?.temperature?.getStatus(s.latestTemperature ?? 0))),
+        const SizedBox(width: AppTheme.spacingM),
+        Expanded(child: _metricTile(Icons.water_drop_outlined, AppTheme.humidityBlue, 'Humidity',
+            s.latestHumidity != null ? '${s.latestHumidity!.toStringAsFixed(1)}%' : 'N/A',
+            thresholdStatus: s.thresholds?.humidity?.getStatus(s.latestHumidity ?? 0))),
+      ]),
+      const SizedBox(height: AppTheme.spacingM),
+      Row(children: [
+        Expanded(child: _metricTile(Icons.science_outlined, const Color(0xFFAB47BC), 'VOC',
+            s.latestVoc != null ? '${s.latestVoc!.toStringAsFixed(0)} ppb' : 'N/A',
+            thresholdStatus: s.thresholds?.voc?.getStatus(s.latestVoc ?? 0))),
+        const SizedBox(width: AppTheme.spacingM),
+        Expanded(child: _metricTile(Icons.grain, const Color(0xFF26A69A), 'Moisture',
+            s.latestMoisture != null ? '${s.latestMoisture!.toStringAsFixed(1)}%' : 'N/A',
+            thresholdStatus: s.thresholds?.moisture?.getStatus(s.latestMoisture ?? 0))),
+      ]),
+    ]);
+  }
+
+  Widget _metricTile(IconData icon, Color color, String label, String value, {String? thresholdStatus}) {
+    final indicatorColor = _thresholdColor(thresholdStatus);
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.spacingM),
       decoration: BoxDecoration(
         color: color.withOpacity(0.08),
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        border: Border(
-          left: BorderSide(color: color, width: 3),
+        border: Border(left: BorderSide(color: indicatorColor, width: 3)),
+      ),
+      child: Row(children: [
+        Icon(icon, color: color, size: 24),
+        const SizedBox(width: AppTheme.spacingS),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(label, style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+          const SizedBox(height: 2),
+          Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+        ])),
+      ]),
+    );
+  }
+
+  Widget _riskCard() {
+    final dm = _sensor!.latestReading!.derivedMetrics!;
+    return _card('Risk Assessment', [
+      Row(children: [
+        // Risk class badge
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: _riskColor(dm.mlRiskClass).withOpacity(0.15),
+            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
+            border: Border.all(color: _riskColor(dm.mlRiskClass).withOpacity(0.4)),
+          ),
+          child: Text((dm.mlRiskClass ?? 'Unknown').toUpperCase(),
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _riskColor(dm.mlRiskClass), letterSpacing: 1)),
         ),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 28),
-          const SizedBox(width: AppTheme.spacingM),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: fullWidth ? 24 : 20,
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+        const SizedBox(width: 16),
+        // Risk score
+        if (dm.mlRiskScore != null) Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Risk Score', style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+          const SizedBox(height: 4),
+          Row(children: [
+            Expanded(child: ClipRRect(borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(value: dm.mlRiskScore! / 100, backgroundColor: AppTheme.dividerColor,
+                color: _riskColor(dm.mlRiskClass), minHeight: 6))),
+            const SizedBox(width: 8),
+            Text('${dm.mlRiskScore!.toInt()}%', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+          ]),
+        ])),
+      ]),
+      const SizedBox(height: AppTheme.spacingL),
+      Wrap(spacing: 12, runSpacing: 8, children: [
+        if (dm.fanRecommendation != null) _tagChip('Fan: ${dm.fanRecommendation}', dm.fanRecommendation == 'run' ? AppTheme.successColor : AppTheme.textSecondary),
+        if (dm.condensationRisk == true) _tagChip('⚠ Condensation Risk', AppTheme.warningColor),
+        if (dm.pestPresenceFlag == true) _tagChip('🐛 Pest Detected', AppTheme.errorColor),
+        if (dm.dewPoint != null) _tagChip('Dew Point: ${dm.dewPoint!.toStringAsFixed(1)}°C', AppTheme.humidityBlue),
+      ]),
+    ]);
   }
 
-  Widget _buildReadingsList() {
+  Widget _tagChip(String text, Color color) {
     return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingL),
-      decoration: AppTheme.cardDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Text(
-                'Recent Readings',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-              const Spacer(),
-              if (_loadingReadings)
-                const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: AppTheme.primaryColor,
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: AppTheme.spacingL),
-          if (_readingsError != null)
-            Container(
-              padding: const EdgeInsets.all(AppTheme.spacingM),
-              decoration: BoxDecoration(
-                color: AppTheme.errorColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.error_outline, color: AppTheme.errorColor, size: 18),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Failed to load readings',
-                      style: const TextStyle(
-                        color: AppTheme.errorColor,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: _loadReadings,
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            )
-          else if (_readings.isEmpty)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(AppTheme.spacingXL),
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.show_chart,
-                      size: 48,
-                      color: AppTheme.textHint.withOpacity(0.5),
-                    ),
-                    const SizedBox(height: AppTheme.spacingM),
-                    const Text(
-                      'No readings available',
-                      style: TextStyle(color: AppTheme.textSecondary),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          else
-            ...(_readings.take(10).map((reading) {
-              final timestamp = reading['timestamp'] != null
-                  ? DateTime.parse(reading['timestamp'])
-                  : DateTime.now();
-              final temp = reading['temperature'];
-              final humidity = reading['humidity'];
-
-              return Container(
-                margin: const EdgeInsets.only(bottom: AppTheme.spacingS),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppTheme.spacingM,
-                  vertical: AppTheme.spacingS,
-                ),
-                decoration: BoxDecoration(
-                  color: AppTheme.backgroundColor,
-                  borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-                ),
-                child: Row(
-                  children: [
-                    Text(
-                      _formatTimestamp(timestamp),
-                      style: const TextStyle(
-                        fontSize: 13,
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
-                    const Spacer(),
-                    if (temp != null) ...[
-                      Icon(
-                        Icons.thermostat_outlined,
-                        size: 14,
-                        color: AppTheme.temperatureOrange,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${(temp as num).toStringAsFixed(1)}°',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.temperatureOrange,
-                        ),
-                      ),
-                    ],
-                    if (temp != null && humidity != null)
-                      const SizedBox(width: AppTheme.spacingM),
-                    if (humidity != null) ...[
-                      Icon(
-                        Icons.water_drop_outlined,
-                        size: 14,
-                        color: AppTheme.humidityBlue,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${(humidity as num).toStringAsFixed(1)}%',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.humidityBlue,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              );
-            })),
-        ],
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3))),
+      child: Text(text, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: color)),
     );
   }
 
-  String _formatTimestamp(DateTime timestamp) {
-    return DateFormat('MMM dd, HH:mm').format(timestamp);
+  Widget _ambientCard() {
+    final a = _sensor!.latestReading!.ambient!;
+    return _card('Ambient Conditions', [
+      Row(children: [
+        if (a.temperature != null) Expanded(child: _smallMetric('Ext. Temp', '${a.temperature!.toStringAsFixed(1)}°C', Icons.thermostat_outlined)),
+        if (a.humidity != null) Expanded(child: _smallMetric('Ext. Humidity', '${a.humidity!.toStringAsFixed(1)}%', Icons.water_drop_outlined)),
+        if (a.light != null) Expanded(child: _smallMetric('Light', '${a.light!.toStringAsFixed(0)} lux', Icons.light_mode_outlined)),
+      ]),
+    ]);
   }
 
-  String _formatTimeAgo(DateTime date) {
-    final now = DateTime.now();
-    final difference = now.difference(date);
-    if (difference.inMinutes < 1) return 'just now';
-    if (difference.inMinutes < 60) return '${difference.inMinutes}m ago';
-    if (difference.inHours < 24) return '${difference.inHours}h ago';
-    return '${difference.inDays}d ago';
+  Widget _fanStatusCard() {
+    final as_ = _sensor!.latestReading!.actuationState!;
+    return _card('Fan / Actuation Status', [
+      Row(children: [
+        Expanded(child: _smallMetric('Fan', as_.fanStatus?.toUpperCase() ?? '--', Icons.air)),
+        if (as_.fanDutyCycle != null) Expanded(child: _smallMetric('Duty Cycle', '${as_.fanDutyCycle}%', Icons.speed)),
+        if (as_.fanRpm != null) Expanded(child: _smallMetric('RPM', '${as_.fanRpm}', Icons.rotate_right)),
+      ]),
+    ]);
   }
 
-  // ---------- ACTION BUTTONS ----------
-  Widget _buildActionButtons() {
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingL),
-      decoration: AppTheme.cardDecoration,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Actions',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: AppTheme.textPrimary,
-            ),
-          ),
-          const SizedBox(height: AppTheme.spacingL),
-          // Calibrate Sensor
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _sensor == null ? null : _calibrateSensor,
-              icon: const Icon(Icons.tune, size: 18),
-              label: const Text('Calibrate Sensor'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-                foregroundColor: Colors.black,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: AppTheme.spacingM),
-          // Log Maintenance
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: _sensor == null ? null : _showMaintenanceDialog,
-              icon: const Icon(Icons.build_outlined, size: 18),
-              label: const Text('Log Maintenance'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppTheme.primaryColor,
-                side: BorderSide(color: AppTheme.primaryColor.withOpacity(0.5)),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+  Widget _smallMetric(String label, String value, IconData icon) {
+    return Column(children: [
+      Icon(icon, size: 20, color: AppTheme.textSecondary),
+      const SizedBox(height: 4),
+      Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+      Text(label, style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
+    ]);
   }
 
-  Future<void> _calibrateSensor() async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.surfaceColor,
-        title: const Text('Calibrate Sensor', style: TextStyle(color: AppTheme.textPrimary)),
-        content: Text(
-          'Are you sure you want to calibrate "${_sensor!.name}"?\nThis will initiate the calibration process.',
-          style: const TextStyle(color: AppTheme.textSecondary),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
-            child: const Text('Calibrate', style: TextStyle(color: Colors.black)),
-          ),
-        ],
-      ),
-    );
+  List<Widget> _buildCharts() {
+    final tempData = _chartData((r) => r.temperature);
+    final humData = _chartData((r) => r.humidity);
+    final vocData = _chartData((r) => r.voc);
+    final moistData = _chartData((r) => r.moisture);
+    final widgets = <Widget>[];
 
+    if (tempData.isNotEmpty) {
+      widgets.addAll([TemperatureChart(title: 'Temperature History', dataSeries: [ChartDataSeries.temperature('Temp', tempData)], height: 160), const SizedBox(height: AppTheme.spacingL)]);
+    }
+    if (humData.isNotEmpty) {
+      widgets.addAll([TemperatureChart(title: 'Humidity History', dataSeries: [ChartDataSeries.humidity('Humidity', humData)], height: 160), const SizedBox(height: AppTheme.spacingL)]);
+    }
+    if (vocData.isNotEmpty) {
+      widgets.addAll([TemperatureChart(title: 'VOC Trend', dataSeries: [ChartDataSeries(label: 'VOC', dataPoints: vocData, color: const Color(0xFFAB47BC), unit: 'ppb')], height: 160), const SizedBox(height: AppTheme.spacingL)]);
+    }
+    if (moistData.isNotEmpty) {
+      widgets.addAll([TemperatureChart(title: 'Moisture Trend', dataSeries: [ChartDataSeries(label: 'Moisture', dataPoints: moistData, color: const Color(0xFF26A69A), unit: '%')], height: 160), const SizedBox(height: AppTheme.spacingL)]);
+    }
+    return widgets;
+  }
+
+  Widget _deviceHealthCard() {
+    final s = _sensor!;
+    return _card('Device Health', [
+      Row(children: [
+        if (s.batteryLevel != null) Expanded(child: _smallMetric('Battery', '${s.batteryLevel}%', Icons.battery_full)),
+        if (s.signalStrength != null) Expanded(child: _smallMetric('Signal', '${s.signalStrength} dBm', Icons.signal_cellular_alt)),
+        if (s.healthMetrics?.uptimePercentage != null) Expanded(child: _smallMetric('Uptime', '${s.healthMetrics!.uptimePercentage!.toStringAsFixed(1)}%', Icons.timer)),
+        if (s.healthMetrics?.errorCount != null) Expanded(child: _smallMetric('Errors', '${s.healthMetrics!.errorCount}', Icons.error_outline)),
+      ]),
+      if (s.healthMetrics?.lastHeartbeat != null) ...[
+        const SizedBox(height: AppTheme.spacingM),
+        Row(children: [
+          const Icon(Icons.favorite, size: 14, color: AppTheme.successColor),
+          const SizedBox(width: 6),
+          Text('Last heartbeat: ${_timeAgo(s.healthMetrics!.lastHeartbeat)}', style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+        ]),
+      ],
+    ]);
+  }
+
+  Widget _calibrationCard() {
+    final s = _sensor!;
+    return _card('Calibration', [
+      Row(children: [
+        Expanded(child: _smallMetric('Status', s.calibrationStatus.toUpperCase(), Icons.tune)),
+        if (s.lastCalibrationDate != null) Expanded(child: _smallMetric('Last Cal.', DateFormat('MMM dd').format(s.lastCalibrationDate!), Icons.event)),
+        if (s.calibrationDueDate != null) Expanded(child: _smallMetric('Due', DateFormat('MMM dd').format(s.calibrationDueDate!), Icons.event_busy)),
+      ]),
+    ]);
+  }
+
+  Widget _actionButtons() {
+    return _card('Actions', [
+      SizedBox(width: double.infinity, child: ElevatedButton.icon(
+        onPressed: _calibrate, icon: const Icon(Icons.tune, size: 18), label: const Text('Calibrate Sensor'),
+        style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(vertical: 14)),
+      )),
+      const SizedBox(height: AppTheme.spacingM),
+      SizedBox(width: double.infinity, child: OutlinedButton.icon(
+        onPressed: _showMaintenanceDialog, icon: const Icon(Icons.build_outlined, size: 18), label: const Text('Log Maintenance'),
+        style: OutlinedButton.styleFrom(foregroundColor: AppTheme.primaryColor, side: BorderSide(color: AppTheme.primaryColor.withOpacity(0.5)), padding: const EdgeInsets.symmetric(vertical: 14)),
+      )),
+    ]);
+  }
+
+  Future<void> _calibrate() async {
+    final confirm = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+      backgroundColor: AppTheme.surfaceColor,
+      title: const Text('Calibrate Sensor', style: TextStyle(color: AppTheme.textPrimary)),
+      content: Text('Calibrate "${_sensor!.deviceName}"?', style: const TextStyle(color: AppTheme.textSecondary)),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+        ElevatedButton(onPressed: () => Navigator.pop(ctx, true), style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
+          child: const Text('Calibrate', style: TextStyle(color: Colors.black))),
+      ],
+    ));
     if (confirm != true) return;
-
     try {
-      await _sensorService.calibrateSensor(widget.sensorId);
+      await _svc.calibrateSensor(widget.sensorId);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Sensor calibration initiated'),
-          backgroundColor: AppTheme.successColor,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      _loadSensorDetails();
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Calibration initiated'), backgroundColor: AppTheme.successColor, behavior: SnackBarBehavior.floating));
+      _load();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Calibration failed: ${e.toString().replaceAll('Exception: ', '')}'),
-          backgroundColor: AppTheme.errorColor,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: ${e.toString().replaceAll('Exception: ', '')}'), backgroundColor: AppTheme.errorColor, behavior: SnackBarBehavior.floating));
     }
   }
 
   void _showMaintenanceDialog() {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.surfaceColor,
-        title: const Text('Log Maintenance', style: TextStyle(color: AppTheme.textPrimary)),
-        content: TextField(
-          controller: controller,
-          maxLines: 4,
-          style: const TextStyle(color: AppTheme.textPrimary),
-          decoration: InputDecoration(
-            hintText: 'Describe the maintenance performed...',
-            hintStyle: const TextStyle(color: AppTheme.textHint),
-            filled: true,
-            fillColor: AppTheme.backgroundColor,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-              borderSide: BorderSide.none,
-            ),
-          ),
+    final ctrl = TextEditingController();
+    showDialog(context: context, builder: (ctx) => AlertDialog(
+      backgroundColor: AppTheme.surfaceColor,
+      title: const Text('Log Maintenance', style: TextStyle(color: AppTheme.textPrimary)),
+      content: TextField(controller: ctrl, maxLines: 4, style: const TextStyle(color: AppTheme.textPrimary),
+        decoration: InputDecoration(hintText: 'Describe the maintenance...', hintStyle: const TextStyle(color: AppTheme.textHint),
+          filled: true, fillColor: AppTheme.backgroundColor, border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppTheme.radiusSmall), borderSide: BorderSide.none))),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+        ElevatedButton(
+          onPressed: () async {
+            final notes = ctrl.text.trim();
+            if (notes.isEmpty) return;
+            Navigator.pop(ctx);
+            try {
+              await _svc.logSensorMaintenance(widget.sensorId, notes);
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Maintenance logged'), backgroundColor: AppTheme.successColor, behavior: SnackBarBehavior.floating));
+            } catch (e) {
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: ${e.toString().replaceAll('Exception: ', '')}'), backgroundColor: AppTheme.errorColor, behavior: SnackBarBehavior.floating));
+            }
+          },
+          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
+          child: const Text('Submit', style: TextStyle(color: Colors.black)),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final notes = controller.text.trim();
-              if (notes.isEmpty) return;
-              Navigator.pop(ctx);
-              try {
-                await _sensorService.logSensorMaintenance(widget.sensorId, notes);
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Maintenance logged successfully'),
-                    backgroundColor: AppTheme.successColor,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              } catch (e) {
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Failed: ${e.toString().replaceAll('Exception: ', '')}'),
-                    backgroundColor: AppTheme.errorColor,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
-            child: const Text('Submit', style: TextStyle(color: Colors.black)),
-          ),
-        ],
-      ),
-    );
+      ],
+    ));
   }
 }

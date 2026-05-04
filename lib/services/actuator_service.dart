@@ -1,211 +1,207 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 import '../models/actuator_model.dart';
 import '../utils/secure_storage.dart';
 
-/// Service for managing actuator devices (fans, lids, ventilation)
+/// Service for managing actuator devices — NO mock data, real API only.
 class ActuatorService {
-  /// Get all actuators
-  static Future<List<ActuatorModel>> getActuators({
+  /// Get all actuators with optional filters.
+  static Future<Map<String, dynamic>> getActuators({
     String? siloId,
-    String? type,
+    String? actuatorType,
     String? status,
+    int page = 1,
+    int limit = 50,
   }) async {
-    try {
-      final token = await SecureStorage.getToken();
-      if (token == null) {
-        throw Exception('Not authenticated');
-      }
+    final token = await SecureStorage.getToken();
+    if (token == null) throw Exception('Not authenticated');
 
-      String url = ApiConfig.actuators;
-      final queryParams = <String, String>{};
-      
-      if (siloId != null) queryParams['siloId'] = siloId;
-      if (type != null) queryParams['type'] = type;
-      if (status != null) queryParams['status'] = status;
-      
-      if (queryParams.isNotEmpty) {
-        url += '?${queryParams.entries.map((e) => '${e.key}=${e.value}').join('&')}';
-      }
+    final queryParams = <String, String>{
+      'page': page.toString(),
+      'limit': limit.toString(),
+    };
+    if (siloId != null) queryParams['silo_id'] = siloId;
+    if (actuatorType != null) queryParams['actuator_type'] = actuatorType;
+    if (status != null) queryParams['status'] = status;
 
-      final response = await http.get(
-        Uri.parse(url),
-        headers: ApiConfig.getHeaders(token: token),
-      ).timeout(const Duration(seconds: 15));
+    final uri = Uri.parse(ApiConfig.actuators).replace(queryParameters: queryParams);
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final List actuatorsList = data['actuators'] ?? data['data'] ?? data;
-        return actuatorsList.map((json) => ActuatorModel.fromJson(json)).toList();
-      } else if (response.statusCode == 404) {
-        // API not implemented yet, return mock data
-        debugPrint('Actuators API not found, using mock data');
-        return _getMockActuators();
-      } else {
-        throw Exception('Failed to fetch actuators: ${response.statusCode}');
-      }
-    } catch (e) {
-      debugPrint('Error fetching actuators: $e');
-      // Return mock data if API fails
-      return _getMockActuators();
+    final response = await http
+        .get(uri, headers: ApiConfig.getHeaders(token: token))
+        .timeout(const Duration(seconds: 15));
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final List actuatorsList = data['actuators'] ?? data['data'] ?? [];
+      return {
+        'actuators': actuatorsList
+            .map((json) => ActuatorModel.fromJson(json as Map<String, dynamic>))
+            .toList(),
+        'pagination': data['pagination'] ?? {},
+      };
+    } else if (response.statusCode == 401) {
+      throw Exception('Unauthorized');
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Failed to fetch actuators');
     }
   }
 
-  /// Toggle actuator state (on/off)
-  static Future<bool> toggleActuator(String actuatorId, bool newState) async {
-    try {
-      final token = await SecureStorage.getToken();
-      if (token == null) {
-        throw Exception('Not authenticated');
-      }
+  /// Toggle actuator ON/OFF — sends correct `{ action, triggered_by }` body.
+  static Future<ActuatorModel> toggleActuator(String actuatorId, bool newState) async {
+    final token = await SecureStorage.getToken();
+    if (token == null) throw Exception('Not authenticated');
 
-      final response = await http.post(
-        Uri.parse(ApiConfig.actuatorControl(actuatorId)),
-        headers: ApiConfig.getHeaders(token: token),
-        body: jsonEncode({
-          'state': newState ? 'on' : 'off',
-          'isOn': newState,
-        }),
-      ).timeout(const Duration(seconds: 10));
+    final response = await http
+        .post(
+          Uri.parse(ApiConfig.actuatorControl(actuatorId)),
+          headers: ApiConfig.getHeaders(token: token),
+          body: jsonEncode({
+            'action': newState ? 'on' : 'off',
+            'triggered_by': 'Manual',
+          }),
+        )
+        .timeout(const Duration(seconds: 10));
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return true;
-      } else if (response.statusCode == 404) {
-        // API not implemented, simulate success
-        debugPrint('Actuator control API not found, simulating success');
-        return true;
-      } else {
-        final errorData = jsonDecode(response.body);
-        throw Exception(errorData['message'] ?? 'Failed to toggle actuator');
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final data = jsonDecode(response.body);
+      if (data['actuator'] != null) {
+        return ActuatorModel.fromJson(data['actuator'] as Map<String, dynamic>);
       }
-    } catch (e) {
-      debugPrint('Error toggling actuator: $e');
-      // Simulate success for demo purposes
+      // If server doesn't return full actuator, we rely on caller to refresh
+      throw Exception('_no_actuator_in_response');
+    } else if (response.statusCode == 400) {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Bad request');
+    } else if (response.statusCode == 401) {
+      throw Exception('Unauthorized');
+    } else if (response.statusCode == 404) {
+      throw Exception('Actuator not found');
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Failed to toggle actuator');
+    }
+  }
+
+  /// Set power level — sends `{ action: 'set_power', power_level, triggered_by }`.
+  static Future<ActuatorModel> setPowerLevel(String actuatorId, int level) async {
+    final token = await SecureStorage.getToken();
+    if (token == null) throw Exception('Not authenticated');
+
+    final response = await http
+        .post(
+          Uri.parse(ApiConfig.actuatorControl(actuatorId)),
+          headers: ApiConfig.getHeaders(token: token),
+          body: jsonEncode({
+            'action': 'set_power',
+            'power_level': level,
+            'triggered_by': 'Manual',
+          }),
+        )
+        .timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final data = jsonDecode(response.body);
+      if (data['actuator'] != null) {
+        return ActuatorModel.fromJson(data['actuator'] as Map<String, dynamic>);
+      }
+      throw Exception('_no_actuator_in_response');
+    } else if (response.statusCode == 401) {
+      throw Exception('Unauthorized');
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Failed to set power level');
+    }
+  }
+
+  /// Get actuator details by ID.
+  static Future<ActuatorModel> getActuatorById(String actuatorId) async {
+    final token = await SecureStorage.getToken();
+    if (token == null) throw Exception('Not authenticated');
+
+    final response = await http
+        .get(
+          Uri.parse(ApiConfig.actuatorDetails(actuatorId)),
+          headers: ApiConfig.getHeaders(token: token),
+        )
+        .timeout(const Duration(seconds: 15));
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      return ActuatorModel.fromJson(data as Map<String, dynamic>);
+    } else if (response.statusCode == 401) {
+      throw Exception('Unauthorized');
+    } else if (response.statusCode == 404) {
+      throw Exception('Actuator not found');
+    } else {
+      throw Exception('Failed to fetch actuator details');
+    }
+  }
+
+  /// Log maintenance activity.
+  static Future<bool> logMaintenance(
+    String actuatorId, {
+    required String maintenanceType,
+    required String notes,
+    int? nextMaintenanceDays,
+  }) async {
+    final token = await SecureStorage.getToken();
+    if (token == null) throw Exception('Not authenticated');
+
+    final body = <String, dynamic>{
+      'maintenance_type': maintenanceType,
+      'notes': notes,
+    };
+    if (nextMaintenanceDays != null) {
+      body['next_maintenance_days'] = nextMaintenanceDays;
+    }
+
+    final response = await http
+        .post(
+          Uri.parse(ApiConfig.actuatorMaintenance(actuatorId)),
+          headers: ApiConfig.getHeaders(token: token),
+          body: jsonEncode(body),
+        )
+        .timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200 || response.statusCode == 201) {
       return true;
+    } else if (response.statusCode == 401) {
+      throw Exception('Unauthorized');
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Failed to log maintenance');
     }
   }
 
-  /// Log maintenance activity
-  static Future<bool> logMaintenance(String actuatorId, String notes) async {
-    try {
-      final token = await SecureStorage.getToken();
-      if (token == null) throw Exception('Not authenticated');
+  /// Bulk control — turn ON/OFF multiple actuators.
+  static Future<Map<String, dynamic>> bulkControl({
+    required List<String> actuatorIds,
+    required String action,
+  }) async {
+    final token = await SecureStorage.getToken();
+    if (token == null) throw Exception('Not authenticated');
 
-      final response = await http.post(
-        Uri.parse(ApiConfig.actuatorMaintenance(actuatorId)),
-        headers: ApiConfig.getHeaders(token: token),
-        body: jsonEncode({'notes': notes}),
-      ).timeout(const Duration(seconds: 10));
+    final response = await http
+        .post(
+          Uri.parse('${ApiConfig.actuators}/bulk-control'),
+          headers: ApiConfig.getHeaders(token: token),
+          body: jsonEncode({
+            'actuator_ids': actuatorIds,
+            'action': action,
+            'triggered_by': 'Manual',
+          }),
+        )
+        .timeout(const Duration(seconds: 15));
 
-      return response.statusCode == 200 || response.statusCode == 201;
-    } catch (e) {
-      debugPrint('Error logging maintenance: $e');
-      // Simulate success for demo
-      return true;
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    } else if (response.statusCode == 401) {
+      throw Exception('Unauthorized');
+    } else {
+      final error = jsonDecode(response.body);
+      throw Exception(error['error'] ?? 'Bulk control failed');
     }
-  }
-
-  /// Get actuators for a specific silo
-  static Future<List<ActuatorModel>> getActuatorsBySilo(String siloId) async {
-    return getActuators(siloId: siloId);
-  }
-
-  /// Get actuator by ID
-  static Future<ActuatorModel?> getActuatorById(String actuatorId) async {
-    try {
-      final token = await SecureStorage.getToken();
-      if (token == null) {
-        throw Exception('Not authenticated');
-      }
-
-      final response = await http.get(
-        Uri.parse('${ApiConfig.actuators}/$actuatorId'),
-        headers: ApiConfig.getHeaders(token: token),
-      ).timeout(const Duration(seconds: 15));
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return ActuatorModel.fromJson(data['actuator'] ?? data);
-      } else {
-        return null;
-      }
-    } catch (e) {
-      debugPrint('Error fetching actuator: $e');
-      return null;
-    }
-  }
-
-  /// Mock data for development/demo
-  static List<ActuatorModel> _getMockActuators() {
-    return [
-      ActuatorModel(
-        id: 'act_001',
-        name: 'Main Ventilation Fan',
-        type: 'fan',
-        siloId: 'silo_001',
-        siloName: 'Silo A - Wheat',
-        isOn: true,
-        status: 'active',
-        lastAction: DateTime.now().subtract(const Duration(hours: 2)),
-        lastActionBy: 'John Doe',
-      ),
-      ActuatorModel(
-        id: 'act_002',
-        name: 'Top Lid',
-        type: 'lid',
-        siloId: 'silo_001',
-        siloName: 'Silo A - Wheat',
-        isOn: false,
-        status: 'active',
-        lastAction: DateTime.now().subtract(const Duration(days: 1)),
-        lastActionBy: 'Jane Smith',
-      ),
-      ActuatorModel(
-        id: 'act_003',
-        name: 'Cooling Unit',
-        type: 'cooler',
-        siloId: 'silo_002',
-        siloName: 'Silo B - Rice',
-        isOn: true,
-        status: 'active',
-        lastAction: DateTime.now().subtract(const Duration(minutes: 30)),
-        lastActionBy: 'John Doe',
-      ),
-      ActuatorModel(
-        id: 'act_004',
-        name: 'Secondary Fan',
-        type: 'fan',
-        siloId: 'silo_002',
-        siloName: 'Silo B - Rice',
-        isOn: false,
-        status: 'offline',
-        lastAction: DateTime.now().subtract(const Duration(days: 7)),
-        lastActionBy: 'System',
-      ),
-      ActuatorModel(
-        id: 'act_005',
-        name: 'Access Lid',
-        type: 'lid',
-        siloId: 'silo_003',
-        siloName: 'Silo C - Corn',
-        isOn: true,
-        status: 'active',
-        lastAction: DateTime.now().subtract(const Duration(hours: 5)),
-        lastActionBy: 'Jane Smith',
-      ),
-      ActuatorModel(
-        id: 'act_006',
-        name: 'Ventilation System',
-        type: 'ventilation',
-        siloId: 'silo_003',
-        siloName: 'Silo C - Corn',
-        isOn: true,
-        status: 'active',
-        lastAction: DateTime.now().subtract(const Duration(hours: 1)),
-        lastActionBy: 'Auto',
-      ),
-    ];
   }
 }

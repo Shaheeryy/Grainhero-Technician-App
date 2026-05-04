@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:grainhero_technician_app/config/api_config.dart';
 import 'package:grainhero_technician_app/config/app_theme.dart';
@@ -209,11 +210,25 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      resizeToAvoidBottomInset: true,
-      body: Container(
-        decoration: const BoxDecoration(
-          color: AppTheme.backgroundColor,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        // Dismiss keyboard on back press instead of closing app
+        final currentFocus = FocusScope.of(context);
+        if (!currentFocus.hasPrimaryFocus && currentFocus.focusedChild != null) {
+          currentFocus.unfocus();
+        } else {
+          SystemNavigator.pop();
+        }
+      },
+      child: GestureDetector(
+        onTap: () => FocusScope.of(context).unfocus(),
+        child: Scaffold(
+          resizeToAvoidBottomInset: true,
+          body: Container(
+            decoration: const BoxDecoration(
+              color: AppTheme.backgroundColor,
         ),
         child: SafeArea(
           child: SingleChildScrollView(
@@ -431,7 +446,9 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
+          ),
         ),
+      ),
       ),
     );
   }

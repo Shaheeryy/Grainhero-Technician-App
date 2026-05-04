@@ -6,7 +6,7 @@ import '../../services/auth_service.dart';
 import '../../utils/validators.dart';
 import '../../widgets/custom_button.dart';
 import '../../config/app_theme.dart';
-import '../dashboard/dashboard_screen.dart';
+import '../main/main_screen.dart';
 
 class OtpVerificationScreen extends StatefulWidget {
   final String phone;
@@ -60,7 +60,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
     if (success) {
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => DashboardScreen()),
+        MaterialPageRoute(builder: (_) => const MainScreen()),
         (route) => false,
       );
     } else {
