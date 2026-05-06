@@ -125,8 +125,6 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
                           ..._buildCharts(),
                           _deviceHealthCard(),
                           const SizedBox(height: AppTheme.spacingL),
-                          _calibrationCard(),
-                          const SizedBox(height: AppTheme.spacingL),
                           _actionButtons(),
                         ]),
                       ),
@@ -351,52 +349,13 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
     ]);
   }
 
-  Widget _calibrationCard() {
-    final s = _sensor!;
-    return _card('Calibration', [
-      Row(children: [
-        Expanded(child: _smallMetric('Status', s.calibrationStatus.toUpperCase(), Icons.tune)),
-        if (s.lastCalibrationDate != null) Expanded(child: _smallMetric('Last Cal.', DateFormat('MMM dd').format(s.lastCalibrationDate!), Icons.event)),
-        if (s.calibrationDueDate != null) Expanded(child: _smallMetric('Due', DateFormat('MMM dd').format(s.calibrationDueDate!), Icons.event_busy)),
-      ]),
-    ]);
-  }
-
   Widget _actionButtons() {
     return _card('Actions', [
-      SizedBox(width: double.infinity, child: ElevatedButton.icon(
-        onPressed: _calibrate, icon: const Icon(Icons.tune, size: 18), label: const Text('Calibrate Sensor'),
-        style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor, foregroundColor: Colors.black, padding: const EdgeInsets.symmetric(vertical: 14)),
-      )),
-      const SizedBox(height: AppTheme.spacingM),
       SizedBox(width: double.infinity, child: OutlinedButton.icon(
         onPressed: _showMaintenanceDialog, icon: const Icon(Icons.build_outlined, size: 18), label: const Text('Log Maintenance'),
         style: OutlinedButton.styleFrom(foregroundColor: AppTheme.primaryColor, side: BorderSide(color: AppTheme.primaryColor.withOpacity(0.5)), padding: const EdgeInsets.symmetric(vertical: 14)),
       )),
     ]);
-  }
-
-  Future<void> _calibrate() async {
-    final confirm = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
-      backgroundColor: AppTheme.surfaceColor,
-      title: const Text('Calibrate Sensor', style: TextStyle(color: AppTheme.textPrimary)),
-      content: Text('Calibrate "${_sensor!.deviceName}"?', style: const TextStyle(color: AppTheme.textSecondary)),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-        ElevatedButton(onPressed: () => Navigator.pop(ctx, true), style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
-          child: const Text('Calibrate', style: TextStyle(color: Colors.black))),
-      ],
-    ));
-    if (confirm != true) return;
-    try {
-      await _svc.calibrateSensor(widget.sensorId);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Calibration initiated'), backgroundColor: AppTheme.successColor, behavior: SnackBarBehavior.floating));
-      _load();
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: ${e.toString().replaceAll('Exception: ', '')}'), backgroundColor: AppTheme.errorColor, behavior: SnackBarBehavior.floating));
-    }
   }
 
   void _showMaintenanceDialog() {
@@ -417,7 +376,45 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
             try {
               await _svc.logSensorMaintenance(widget.sensorId, notes);
               if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Maintenance logged'), backgroundColor: AppTheme.successColor, behavior: SnackBarBehavior.floating));
+              
+              // Professional Success UI
+              showDialog(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  backgroundColor: AppTheme.surfaceColor,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.check_circle, color: AppTheme.successColor, size: 60),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Maintenance Logged',
+                        style: TextStyle(color: AppTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'The maintenance record has been saved and the farm administrator has been notified.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryColor,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                          child: const Text('Done', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                        ),
+                      )
+                    ],
+                  ),
+                ),
+              );
             } catch (e) {
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: ${e.toString().replaceAll('Exception: ', '')}'), backgroundColor: AppTheme.errorColor, behavior: SnackBarBehavior.floating));

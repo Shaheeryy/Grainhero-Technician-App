@@ -237,7 +237,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               const SizedBox(height: 20),
                               _buildQuickStats(),
                               const SizedBox(height: 24),
-                              _buildSensorMetrics(),
+                              _buildSilosEnvironment(),
                               const SizedBox(height: 24),
                               if (_recentBatches.isNotEmpty) ...[
                                 _buildRecentBatchesSection(),
@@ -451,75 +451,136 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // ---------- SENSOR METRICS ----------
-  Widget _buildSensorMetrics() {
-    // Determine which silo to show (prefer active, otherwise first available)
-    SiloModel? targetSilo;
-    
-    if (_silos.isNotEmpty) {
-      // Try to find first active silo
-      try {
-        targetSilo = _silos.firstWhere((s) {
-            final sModel = s as SiloModel; 
-            return sModel.status.toLowerCase() == 'active';
-        });
-      } catch (_) {
-        // If no active silo, take the first one
-        targetSilo = _silos.first as SiloModel;
-      }
+  // ---------- SILOS ENVIRONMENT CAROUSEL ----------
+  Widget _buildSilosEnvironment() {
+    if (_silos.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionTitle('Silo Environments'),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppTheme.cardColor,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppTheme.borderColor, width: 0.5),
+            ),
+            child: const Center(
+              child: Text(
+                'No silos available',
+                style: TextStyle(color: AppTheme.textSecondary),
+              ),
+            ),
+          ),
+        ],
+      );
     }
-
-    final temp = targetSilo?.temperature ?? 0;
-    final hum = targetSilo?.humidity ?? 0;
-    final tvoc = targetSilo?.tvoc ?? 0;
-
-    // Only show '--' if we strictly have NO data (targetSilo is null)
-    // If we have a silo, even if values are 0, we show 0 (as per user request "0.0 means nothing (0.0)")
-    final hasData = targetSilo != null;
-
-    final metrics = <Widget>[
-      Expanded(
-        child: _buildMetricTile(
-          icon: Icons.thermostat_rounded,
-          value: hasData ? temp.toStringAsFixed(1) : '--',
-          unit: '°C',
-          label: 'Temperature',
-          color: AppTheme.temperatureOrange,
-        ),
-      ),
-      Expanded(
-        child: _buildMetricTile(
-          icon: Icons.water_drop_rounded,
-          value: hasData ? hum.toStringAsFixed(1) : '--',
-          unit: '%',
-          label: 'Humidity',
-          color: AppTheme.humidityBlue,
-        ),
-      ),
-      Expanded(
-        child: _buildMetricTile(
-          icon: Icons.air,
-          value: hasData ? tvoc.toStringAsFixed(0) : '--',
-          unit: 'ppb',
-          label: 'TVOC',
-          color: AppTheme.co2Purple,
-        ),
-      ),
-    ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _buildSectionTitle('Environment'),
+        _buildSectionTitle('Silo Environments'),
         const SizedBox(height: 12),
-        Row(
-          children: [
-            metrics[0],
-            const SizedBox(width: 10),
-            metrics[1],
-            const SizedBox(width: 10),
-            metrics[2],
-          ],
+        SizedBox(
+          height: 140, // Height for the cards
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: _silos.length,
+            itemBuilder: (context, index) {
+              final silo = _silos[index] as SiloModel;
+              return _buildSiloEnvironmentCard(silo);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSiloEnvironmentCard(SiloModel silo) {
+    final temp = silo.temperature ?? 0;
+    final hum = silo.humidity ?? 0;
+    final tvoc = silo.tvoc ?? 0;
+
+    return Container(
+      width: 280, // Fixed width for each card
+      margin: const EdgeInsets.only(right: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.cardColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppTheme.borderColor, width: 0.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                silo.name,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textPrimary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: silo.status.toLowerCase() == 'active'
+                      ? AppTheme.successColor.withOpacity(0.15)
+                      : AppTheme.textSecondary.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  silo.status.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: silo.status.toLowerCase() == 'active'
+                        ? AppTheme.successColor
+                        : AppTheme.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildMiniMetric(Icons.thermostat, '${temp.toStringAsFixed(1)}°C', AppTheme.temperatureOrange),
+              _buildMiniMetric(Icons.water_drop, '${hum.toStringAsFixed(1)}%', AppTheme.humidityBlue),
+              _buildMiniMetric(Icons.air, '${tvoc.toStringAsFixed(0)}ppb', AppTheme.co2Purple),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMiniMetric(IconData icon, String value, Color color) {
+    return Column(
+      children: [
+        Icon(icon, size: 20, color: color),
+        const SizedBox(height: 6),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: AppTheme.textPrimary,
+          ),
         ),
       ],
     );

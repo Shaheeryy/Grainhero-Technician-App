@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 import '../models/sensor_model.dart';
@@ -24,17 +25,23 @@ class SensorService {
 
     final uri = Uri.parse(ApiConfig.sensors).replace(queryParameters: queryParams);
 
+    debugPrint('🔍 SENSOR API: GET $uri');
     final response = await http
         .get(uri, headers: ApiConfig.getHeaders(token: token))
         .timeout(const Duration(seconds: 15));
 
+    debugPrint('🔍 SENSOR API: Status ${response.statusCode}');
+    debugPrint('🔍 SENSOR API: Body ${response.body.length > 500 ? response.body.substring(0, 500) : response.body}');
+
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
+      final sensors = (data['sensors'] as List<dynamic>?)
+              ?.map((e) => SensorDevice.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          [];
+      debugPrint('🔍 SENSOR API: Parsed ${sensors.length} sensors');
       return {
-        'sensors': (data['sensors'] as List<dynamic>?)
-                ?.map((e) => SensorDevice.fromJson(e as Map<String, dynamic>))
-                .toList() ??
-            [],
+        'sensors': sensors,
         'pagination': data['pagination'] ?? {},
       };
     } else if (response.statusCode == 401) {
@@ -43,6 +50,7 @@ class SensorService {
       final error = jsonDecode(response.body);
       throw Exception(error['error'] ?? 'Failed to load sensors');
     }
+
   }
 
   /// Fetch sensor details by ID (includes recent_readings).
@@ -149,7 +157,11 @@ class SensorService {
         .post(
           Uri.parse(ApiConfig.sensorMaintenance(sensorId)),
           headers: ApiConfig.getHeaders(token: token),
-          body: jsonEncode({'notes': notes}),
+          body: jsonEncode({
+            'maintenance_type': 'inspection',
+            'maintenance_actions': ['Visual Inspection', 'Cleaning'],
+            'notes': notes.isEmpty ? 'Routine sensor maintenance' : notes,
+          }),
         )
         .timeout(const Duration(seconds: 10));
 

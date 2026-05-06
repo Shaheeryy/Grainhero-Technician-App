@@ -31,7 +31,7 @@ class SiloModel {
 
     return SiloModel(
       id: json['_id'] ?? '',
-      name: json['silo_id'] ?? 'Unknown Silo',
+      name: json['name'] ?? json['silo_id'] ?? 'Unknown Silo',
       capacity: (json['capacity_kg'] ?? 0).toDouble(),
       currentLevel: (json['current_occupancy_kg'] ?? 0).toDouble(),
       status: json['status'] ?? 'active',

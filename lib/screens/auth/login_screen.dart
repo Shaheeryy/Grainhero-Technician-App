@@ -8,6 +8,7 @@ import 'package:grainhero_technician_app/screens/main/main_screen.dart';
 import 'package:grainhero_technician_app/screens/auth/forgot_password_screen.dart';
 import 'package:grainhero_technician_app/screens/auth/sign_up_screen.dart';
 import 'package:grainhero_technician_app/utils/secure_storage.dart';
+import 'package:grainhero_technician_app/services/notification_service.dart';
 
 class LoginScreen extends StatefulWidget {
   final String? email;
@@ -135,6 +136,11 @@ class _LoginScreenState extends State<LoginScreen> {
           if (!mounted) return;
           
           debugPrint('✅ Login successful, navigating to dashboard...');
+
+          // Register FCM token now that we have a valid auth token
+          NotificationService().registerToken().catchError((e) {
+            debugPrint('FCM token registration after login: $e');
+          });
           
           setState(() {
             _isLoading = false;

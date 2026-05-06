@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 import '../models/user_model.dart';
 import '../utils/secure_storage.dart';
+import 'notification_service.dart';
 
 class AuthService extends ChangeNotifier {
   UserModel? _user;
@@ -80,6 +81,12 @@ class AuthService extends ChangeNotifier {
         );
 
         notifyListeners();
+
+        // Register FCM token with backend for push notifications
+        NotificationService().registerToken().catchError((e) {
+          debugPrint('FCM token registration after login: $e');
+        });
+
         return true;
       } else {
         final data = jsonDecode(response.body);
@@ -132,6 +139,11 @@ class AuthService extends ChangeNotifier {
     try {
       final token = await SecureStorage.getToken();
       if (token != null) {
+        // Unregister FCM token before logout
+        await NotificationService().unregisterToken().catchError((e) {
+          debugPrint('FCM unregister error: $e');
+        });
+
         // Call logout API
         await http.post(
           Uri.parse(ApiConfig.logout),

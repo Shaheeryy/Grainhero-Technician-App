@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Required by mipmap-anydpi-v26/ic_launcher.xml adaptive icon -->
     <color name="ic_launcher_background">#1A1A2E</color>
+    <!-- GrainHero gold color for push notification accent -->
+    <color name="notification_color">#D4A017</color>
 </resources>

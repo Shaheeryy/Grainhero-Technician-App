@@ -9,6 +9,7 @@ import '../../config/app_theme.dart';
 import '../auth/login_screen.dart';
 import 'change_password_screen.dart';
 import 'about_app_screen.dart';
+import '../logs/activity_logs_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -365,6 +366,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               onTap: () => Navigator.push(
                                 context,
                                 MaterialPageRoute(builder: (_) => const AboutAppScreen()),
+                              ),
+                            ),
+                            const SizedBox(height: AppTheme.spacingS),
+                            _buildSettingsTile(
+                              icon: Icons.history,
+                              title: 'Activity Logs',
+                              onTap: () => Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => const ActivityLogsScreen()),
                               ),
                             ),
                           ],

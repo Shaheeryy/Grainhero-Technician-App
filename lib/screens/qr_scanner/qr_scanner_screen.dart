@@ -50,21 +50,38 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
     }
   }
 
-  Future<void> _processCode(String code) async {
+  Future<void> _processCode(String rawCode) async {
     setState(() {
       _isLoading = true;
       _isScanning = false;
     });
 
+    String codeToLookup = rawCode;
+    // Check if the QR code is a JSON string (Admin Panel format)
+    if (rawCode.trim().startsWith('{')) {
+      try {
+        final decoded = jsonDecode(rawCode);
+        if (decoded is Map<String, dynamic>) {
+          codeToLookup = decoded['batch_id']?.toString() ?? 
+                         decoded['qr_code']?.toString() ?? 
+                         decoded['id']?.toString() ?? 
+                         rawCode;
+          debugPrint('Extracted ID from JSON QR code: $codeToLookup');
+        }
+      } catch (e) {
+        debugPrint('Failed to parse QR JSON: $e');
+      }
+    }
+
     try {
-      final result = await _lookupCode(code);
+      final result = await _lookupCode(codeToLookup);
       
       if (!mounted) return;
 
       if (result != null) {
         _navigateToDetail(result);
       } else {
-        _showNotFoundDialog(code);
+        _showNotFoundDialog(codeToLookup);
       }
     } catch (e) {
       if (mounted) {

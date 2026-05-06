@@ -1,21 +1,22 @@
 {
   "project_info": {
-    "project_number": "751932178476",
-    "project_id": "grainhero-app",
-    "storage_bucket": "grainhero-app.firebasestorage.app"
+    "project_number": "316909557032",
+    "firebase_url": "https://smart-silo-8ce12-default-rtdb.firebaseio.com",
+    "project_id": "smart-silo-8ce12",
+    "storage_bucket": "smart-silo-8ce12.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:751932178476:android:18304c942cd44b391f9189",
+        "mobilesdk_app_id": "1:316909557032:android:2d565bd80d8d8c3d6aac1d",
         "android_client_info": {
-          "package_name": "com.example.grainhero_technician_app"
+          "package_name": "grainhero.tech"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyDSCZaFaxtT63gh5T7bfuf7Jpb_MnAz1QQ"
+          "current_key": "AIzaSyBq_HtXjiuTKhHWf1MqBerYJkgW5o8Wkcc"
         }
       ],
       "services": {

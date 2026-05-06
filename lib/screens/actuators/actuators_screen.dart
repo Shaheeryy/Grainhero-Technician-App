@@ -54,8 +54,8 @@ class _ActuatorsScreenState extends State<ActuatorsScreen> {
           backgroundColor: newState ? AppTheme.successColor : AppTheme.textSecondary,
           behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 2),
         ));
-        // Refresh after short delay to get confirmed state
-        Future.delayed(const Duration(seconds: 1), () { if (mounted) _loadActuators(); });
+        // We do NOT call _loadActuators() here because the backend sends commands via MQTT
+        // and doesn't immediately update MongoDB. We rely on the optimistic update above.
       }
     } catch (e) {
       // Revert optimistic update
@@ -269,10 +269,22 @@ class _ActuatorsScreenState extends State<ActuatorsScreen> {
         onToggle: () { Navigator.pop(ctx); _toggleActuator(actuator); },
         onPowerChanged: (level) async {
           Navigator.pop(ctx);
+          // Optimistic update
+          setState(() {
+            final idx = _actuators.indexWhere((a) => a.id == actuator.id);
+            if (idx != -1) {
+              _actuators[idx] = actuator.copyWith(powerLevel: level, isOn: level > 0);
+            }
+          });
+          
           try {
             await ActuatorService.setPowerLevel(actuator.id, level);
-            if (mounted) _loadActuators();
           } catch (e) {
+            // Revert on error
+            setState(() {
+              final idx = _actuators.indexWhere((a) => a.id == actuator.id);
+              if (idx != -1) _actuators[idx] = actuator;
+            });
             if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: ${e.toString().replaceAll('Exception: ', '')}'), backgroundColor: AppTheme.errorColor, behavior: SnackBarBehavior.floating));
           }
         },
@@ -316,7 +328,44 @@ class _ActuatorsScreenState extends State<ActuatorsScreen> {
             try {
               await ActuatorService.logMaintenance(actuator.id, maintenanceType: selectedType, notes: notesCtrl.text.trim());
               if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Maintenance logged'), backgroundColor: AppTheme.successColor, behavior: SnackBarBehavior.floating));
+                // Professional Success UI
+                showDialog(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    backgroundColor: AppTheme.surfaceColor,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.check_circle, color: AppTheme.successColor, size: 60),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Maintenance Logged',
+                          style: TextStyle(color: AppTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'The maintenance record has been saved and the farm administrator has been notified.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+                        ),
+                        const SizedBox(height: 24),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryColor,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                            ),
+                            child: const Text('Done', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                          ),
+                        )
+                      ],
+                    ),
+                  ),
+                );
                 _loadActuators();
               }
             } catch (e) {

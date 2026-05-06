@@ -57,58 +57,78 @@ class ActuatorModel {
   });
 
   factory ActuatorModel.fromJson(Map<String, dynamic> json) {
-    // Handle populated silo_id object
-    String? siloId;
-    String? siloName;
-    String? siloCode;
-    if (json['silo_id'] is Map) {
-      siloId = json['silo_id']['_id']?.toString();
-      siloName = json['silo_id']['name']?.toString();
-      siloCode = json['silo_id']['silo_id']?.toString();
-    } else {
-      siloId = json['silo_id']?.toString();
-      siloName = json['silo_name']?.toString();
+    // Determine the silo information
+    String siloId = 'unknown';
+    String siloName = 'Unknown Silo';
+    String siloCode = 'UNK';
+
+    if (json['silo_id'] is Map<String, dynamic>) {
+      siloId = json['silo_id']['_id'] ?? json['silo_id']['silo_id'] ?? 'unknown';
+      siloName = json['silo_id']['name'] ?? 'Unknown Silo';
+      siloCode = json['silo_id']['silo_code'] ?? 'UNK';
+    } else if (json['silo_id'] is String) {
+      siloId = json['silo_id'];
+    }
+
+    // Determine basic state from SensorDevice fields
+    final double targetFanSpeed = (json['target_fan_speed'] ?? 0).toDouble();
+    final bool humanRequestedFan = json['human_requested_fan'] ?? false;
+    final bool isEnabled = json['is_enabled'] ?? true;
+    final String mlDecision = json['ml_decision'] ?? 'idle';
+    
+    // Fallback: If it's the old Actuator schema, is_on exists. If SensorDevice, we use human_requested_fan or target_fan_speed
+    final bool isOn = json['is_on'] ?? humanRequestedFan ?? (targetFanSpeed > 0);
+    
+    // Determine control mode
+    String controlMode = json['control_mode'] ?? 'manual';
+    if (json['control_mode'] == null) {
+       controlMode = (mlDecision == 'fan_on' || mlDecision == 'failsafe') ? 'ai' : 'manual';
     }
 
     return ActuatorModel(
-      id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
-      actuatorId: json['actuator_id']?.toString() ?? '',
-      name: json['name']?.toString() ?? 'Unknown Actuator',
-      actuatorType: json['actuator_type']?.toString() ?? json['type']?.toString() ?? 'fan',
+      id: json['_id'] ?? '',
+      actuatorId: json['device_id'] ?? json['actuator_id'] ?? '',
+      name: json['device_name'] ?? json['name'] ?? 'Unknown Device',
+      actuatorType: _determineActuatorType(json),
       siloId: siloId,
       siloName: siloName,
       siloCode: siloCode,
-      status: json['status']?.toString() ?? 'active',
-      isEnabled: json['is_enabled'] ?? true,
-      isOn: json['is_on'] ?? false,
-      controlMode: json['control_mode']?.toString() ?? 'manual',
-      powerLevel: (json['power_level'] as num?)?.toInt() ?? 0,
+      status: (json['status'] == 'unknown') ? 'active' : (json['status'] ?? 'active'),
+      isEnabled: isEnabled,
+      isOn: isOn,
+      controlMode: controlMode,
+      powerLevel: json['power_level']?.toInt() ?? targetFanSpeed.toInt(),
       mlRequestedFan: json['ml_requested_fan'] ?? false,
-      humanRequestedFan: json['human_requested_fan'] ?? false,
-      targetFanSpeed: (json['target_fan_speed'] as num?)?.toInt() ?? 0,
-      mlDecision: json['ml_decision']?.toString() ?? 'idle',
-      aiControl: json['ai_control'] is Map
-          ? ActuatorAiControl.fromJson(Map<String, dynamic>.from(json['ai_control']))
-          : const ActuatorAiControl(),
-      currentOperation: json['current_operation'] is Map
-          ? ActuatorCurrentOperation.fromJson(
-              Map<String, dynamic>.from(json['current_operation']))
-          : null,
-      healthMetrics: json['health_metrics'] is Map
-          ? ActuatorHealthMetrics.fromJson(
-              Map<String, dynamic>.from(json['health_metrics']))
-          : const ActuatorHealthMetrics(),
-      performanceMetrics: json['performance_metrics'] is Map
-          ? ActuatorPerformanceMetrics.fromJson(
-              Map<String, dynamic>.from(json['performance_metrics']))
-          : const ActuatorPerformanceMetrics(),
-      safetyLimits: json['safety_limits'] is Map
-          ? ActuatorSafetyLimits.fromJson(
-              Map<String, dynamic>.from(json['safety_limits']))
-          : const ActuatorSafetyLimits(),
-      schedule: json['schedule'] is Map
-          ? ActuatorSchedule.fromJson(Map<String, dynamic>.from(json['schedule']))
-          : const ActuatorSchedule(),
+      humanRequestedFan: humanRequestedFan,
+      targetFanSpeed: targetFanSpeed.toInt(),
+      mlDecision: mlDecision,
+      
+      // Map AI fields
+      aiControl: ActuatorAiControl(
+        enabled: mlDecision != 'idle',
+        riskScoreThreshold: 70,
+      ),
+      
+      // Mock metrics for UI since SensorDevice doesn't track these exactly
+      currentOperation: ActuatorCurrentOperation(
+        startedAt: json['last_activity'] != null ? DateTime.tryParse(json['last_activity']) : null,
+        triggeredBy: humanRequestedFan ? 'Manual' : 'System',
+      ),
+      healthMetrics: ActuatorHealthMetrics(
+        uptimePercentage: (json['health_metrics']?['uptime_percentage'] ?? 100).toDouble(),
+        errorCount: json['health_metrics']?['error_count'] ?? 0,
+        totalOperations: json['data_stats']?['total_readings'] ?? 0,
+        lastHeartbeat: json['health_metrics']?['last_heartbeat'] != null
+            ? DateTime.tryParse(json['health_metrics']['last_heartbeat'])
+            : null,
+      ),
+      performanceMetrics: const ActuatorPerformanceMetrics(
+      ),
+      safetyLimits: const ActuatorSafetyLimits(
+        maxRuntimeHours: 12,
+        cooldownPeriodMinutes: 30,
+      ),
+      schedule: const ActuatorSchedule(),
       operationStatus: json['operation_status']?.toString() ?? 'idle',
       healthStatus: json['health_status']?.toString() ?? 'unknown',
       maintenanceStatus: json['maintenance_status']?.toString() ?? 'unknown',
@@ -170,6 +190,31 @@ class ActuatorModel {
       maintenanceStatus: maintenanceStatus ?? this.maintenanceStatus,
     );
   }
+
+  static String _determineActuatorType(Map<String, dynamic> json) {
+    if (json['actuator_type'] != null) {
+      return json['actuator_type'];
+    }
+    
+    // Check capabilities if available
+    final capabilities = json['capabilities'];
+    if (capabilities != null) {
+      if (capabilities['led'] == true) return 'led';
+      if (capabilities['fan'] == true) return 'fan';
+      if (capabilities['servo'] == true) return 'servo';
+      if (capabilities['pwm'] == true) return 'pwm';
+    }
+    
+    // Check name
+    final name = (json['device_name'] ?? json['name'] ?? '').toString().toLowerCase();
+    if (name.contains('led')) return 'led';
+    if (name.contains('light')) return 'led';
+    if (name.contains('fan')) return 'fan';
+    if (name.contains('blower')) return 'fan';
+    
+    return 'fan'; // default
+  }
+
 
   // ============================================
   // HELPER GETTERS

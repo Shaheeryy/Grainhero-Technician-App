@@ -1,4 +1,4 @@
-package com.example.grainhero_technician_app
+package grainhero.tech
 
 import io.flutter.embedding.android.FlutterActivity
 

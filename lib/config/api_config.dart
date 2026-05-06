@@ -13,7 +13,7 @@ class ApiConfig {
   static const String deployedBaseUrl = 'https://grainhero.onrender.com';
 
   /// Local development IP (only used when useDeployedBackend = false)
-  static const String? physicalDeviceIp = '192.168.100.211';
+  static const String? physicalDeviceIp = '192.168.100.79';
 
   // ============================================
   // BASE URLS (IMPORTANT: Auth uses NO /api prefix!)
@@ -137,8 +137,9 @@ class ApiConfig {
   static String sensorCalibrate(String id) => '$apiBaseUrl/sensors/$id/calibrate';
 
   /// POST /api/sensors/:id/maintenance
+  /// POST /api/device-health/:id/maintenance
   /// Log maintenance for sensor
-  static String sensorMaintenance(String id) => '$apiBaseUrl/sensors/$id/maintenance';
+  static String sensorMaintenance(String id) => '$apiBaseUrl/device-health/$id/maintenance';
 
   // ============================================
   // SILO ENDPOINTS
@@ -206,6 +207,10 @@ class ApiConfig {
   /// Logout user
   static String get logout => '$authBaseUrl/auth/logout';
 
+  /// POST /auth/fcm-token
+  /// Register or refresh FCM device token for push notifications
+  static String get registerFcmToken => '$authBaseUrl/auth/fcm-token';
+
   // ============================================
   // ACTUATOR ENDPOINTS
   // ============================================
@@ -222,9 +227,17 @@ class ApiConfig {
   /// Get actuator details
   static String actuatorDetails(String id) => '$apiBaseUrl/actuators/$id';
 
-  /// POST /api/actuators/:id/maintenance
-  /// Log maintenance for actuator
-  static String actuatorMaintenance(String id) => '$apiBaseUrl/actuators/$id/maintenance';
+  /// POST /api/device-health/:id/maintenance
+  /// Log maintenance for actuator/sensor
+  static String actuatorMaintenance(String id) => '$apiBaseUrl/device-health/$id/maintenance';
+
+  // ============================================
+  // IOT CONTROL ENDPOINTS
+  // ============================================
+
+  /// POST /api/iot/devices/:id/control
+  /// Control fan/leds on ESP32 (turn_on/turn_off/set_value)
+  static String iotDeviceControl(String id) => '$apiBaseUrl/iot/devices/$id/control';
 
   // ============================================
   // QR / LOOKUP ENDPOINTS
@@ -233,6 +246,14 @@ class ApiConfig {
   /// GET /api/lookup/:code
   /// Lookup resource by QR code or ID
   static String lookupByQr(String code) => '$apiBaseUrl/lookup/$code';
+
+  // ============================================
+  // ACTIVITY LOGS ENDPOINTS
+  // ============================================
+
+  /// GET /api/activity-logs
+  /// Get activity logs with pagination
+  static String get activityLogs => '$apiBaseUrl/activity-logs';
 
   // ============================================
   // HEADERS HELPER

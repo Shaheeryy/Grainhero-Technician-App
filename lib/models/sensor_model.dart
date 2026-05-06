@@ -78,7 +78,7 @@ class SensorDevice {
       deviceType: json['device_type']?.toString() ?? 'sensor',
       category: json['category']?.toString() ?? 'environmental',
       sensorTypes: _parseStringList(json['sensor_types']),
-      status: json['status']?.toString() ?? 'unknown',
+      status: (json['status'] == 'unknown') ? 'active' : (json['status']?.toString() ?? 'active'),
       siloId: siloId,
       siloName: siloName,
       siloCode: siloCode,
