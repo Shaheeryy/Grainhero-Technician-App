@@ -49,11 +49,44 @@ class _ActuatorsScreenState extends State<ActuatorsScreen> {
     try {
       await ActuatorService.toggleActuator(actuator.id, newState);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('${actuator.name} turned ${newState ? "ON" : "OFF"}'),
-          backgroundColor: newState ? AppTheme.successColor : AppTheme.textSecondary,
-          behavior: SnackBarBehavior.floating, duration: const Duration(seconds: 2),
-        ));
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: AppTheme.surfaceColor,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(newState ? Icons.check_circle : Icons.power_settings_new, 
+                  color: newState ? AppTheme.successColor : AppTheme.textSecondary, size: 60),
+                const SizedBox(height: 16),
+                Text(
+                  newState ? '${actuator.name} Turned ON' : '${actuator.name} Turned OFF',
+                  style: const TextStyle(color: AppTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  newState ? 'The device is now running successfully.' : 'The device has been powered down.',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primaryColor,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text('Done', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                  ),
+                )
+              ],
+            ),
+          ),
+        );
         // We do NOT call _loadActuators() here because the backend sends commands via MQTT
         // and doesn't immediately update MongoDB. We rely on the optimistic update above.
       }
@@ -156,6 +189,8 @@ class _ActuatorsScreenState extends State<ActuatorsScreen> {
   Widget _buildActuatorCard(ActuatorModel a) {
     final isToggling = _togglingIds.contains(a.id);
     final accentColor = a.isOn ? AppTheme.successColor : AppTheme.textSecondary;
+    final displayStatus = a.isOn ? 'RUNNING' : 'IDLE';
+    final statusColor = a.isOn ? AppTheme.successColor : AppTheme.textSecondary;
 
     return Container(
       margin: const EdgeInsets.only(bottom: AppTheme.spacingM),
@@ -227,9 +262,9 @@ class _ActuatorsScreenState extends State<ActuatorsScreen> {
           // Footer: status, operation status, heartbeat
           Row(children: [
             Container(width: 8, height: 8,
-              decoration: BoxDecoration(color: AppTheme.getStatusColor(a.operationStatus), shape: BoxShape.circle)),
+              decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle)),
             const SizedBox(width: 6),
-            Text(a.operationStatus.toUpperCase(), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppTheme.getStatusColor(a.operationStatus))),
+            Text(displayStatus, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: statusColor)),
             const Spacer(),
             Icon(Icons.access_time, size: 13, color: AppTheme.textHint),
             const SizedBox(width: 4),

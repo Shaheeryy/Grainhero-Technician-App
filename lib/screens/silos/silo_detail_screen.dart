@@ -36,13 +36,13 @@ class _SiloDetailScreenState extends State<SiloDetailScreen> {
   Future<void> _loadBatches() async {
     try {
       // Try with silo.id (MongoDB _id) first, then fallback to silo.name (silo_id)
-      var result = await _batchService.getGrainBatches(siloId: widget.silo.id);
+      var result = await _batchService.getGrainBatches(siloId: widget.silo.id, status: 'stored');
       var batches = (result['batches'] as List).cast<GrainBatch>();
       
       // If no results with _id, try with name (silo_id like SILO-001)
       if (batches.isEmpty && widget.silo.name != widget.silo.id) {
         debugPrint('No batches found with silo._id, trying silo.name: ${widget.silo.name}');
-        result = await _batchService.getGrainBatches(siloId: widget.silo.name);
+        result = await _batchService.getGrainBatches(siloId: widget.silo.name, status: 'stored');
         batches = (result['batches'] as List).cast<GrainBatch>();
       }
 

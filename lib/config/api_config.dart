@@ -13,7 +13,7 @@ class ApiConfig {
   static const String deployedBaseUrl = 'https://grainhero.onrender.com';
 
   /// Local development IP (only used when useDeployedBackend = false)
-  static const String? physicalDeviceIp = '192.168.100.79';
+  static const String? physicalDeviceIp = '10.95.249.86';
 
   // ============================================
   // BASE URLS (IMPORTANT: Auth uses NO /api prefix!)

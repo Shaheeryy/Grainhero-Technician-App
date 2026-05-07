@@ -11,6 +11,7 @@ import 'screens/auth/login_screen.dart';
 import 'screens/auth/sign_up_screen.dart';
 import 'screens/main/main_screen.dart';
 import 'screens/grain_batches/grain_batch_detail_screen.dart';
+import 'screens/alerts/alerts_screen.dart';
 
 // Navigator key for navigation from notification taps
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -51,6 +52,12 @@ void _handleNotificationNavigation(Map<String, dynamic> data) {
     navigatorKey.currentState?.push(
       MaterialPageRoute(
         builder: (_) => GrainBatchDetailScreen(batchId: entityId),
+      ),
+    );
+  } else if (category == 'alert' || category == 'system') {
+    navigatorKey.currentState?.push(
+      MaterialPageRoute(
+        builder: (_) => const AlertsScreen(),
       ),
     );
   } else {

@@ -15,6 +15,8 @@ import 'package:grainhero_technician_app/models/silo_model.dart';
 import '../qr_scanner/qr_scanner_screen.dart';
 import '../alerts/alerts_screen.dart';
 import '../grain_batches/grain_batch_detail_screen.dart';
+import 'package:grainhero_technician_app/services/alert_service.dart';
+import 'package:grainhero_technician_app/widgets/empty_state_widget.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -48,6 +50,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String? error;
   final _userService = UserService();
   final _grainBatchService = GrainBatchService();
+  final _alertService = AlertService();
 
   @override
   void initState() {
@@ -159,6 +162,46 @@ class _DashboardScreenState extends State<DashboardScreen> {
         loading = false;
         error = 'Connection error: ${e.toString()}';
       });
+    }
+  }
+
+  Future<void> _acknowledgeAlert(String alertId) async {
+    try {
+      await _alertService.acknowledgeAlert(alertId);
+      
+      if (!mounted) return;
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
+              SizedBox(width: 12),
+              Text(
+                'Alert successfully acknowledged',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ],
+          ),
+          backgroundColor: AppTheme.successColor,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      
+      // Refresh dashboard to remove the alert
+      _fetchDashboard();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to acknowledge: $e'),
+          backgroundColor: AppTheme.errorColor,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
@@ -337,7 +380,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             onTap: () => Navigator.push(
               context,
               MaterialPageRoute(builder: (_) => const AlertsScreen()),
-            ),
+            ).then((_) => _fetchDashboard()),
           ),
         ],
       ),
@@ -851,10 +894,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
             width: double.infinity,
             child: OutlinedButton(
               onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const AlertsScreen()),
-                );
+                final alertId = alert['_id']?.toString();
+                if (alertId != null) {
+                  _acknowledgeAlert(alertId);
+                } else {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AlertsScreen()),
+                  ).then((_) => _fetchDashboard());
+                }
               },
               style: OutlinedButton.styleFrom(
                 side: BorderSide(color: AppTheme.primaryColor.withOpacity(0.5)),
