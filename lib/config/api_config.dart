@@ -13,7 +13,7 @@ class ApiConfig {
   static const String deployedBaseUrl = 'https://grainhero.onrender.com';
 
   /// Local development IP (only used when useDeployedBackend = false)
-  static const String? physicalDeviceIp = '10.95.249.86';
+  static const String? physicalDeviceIp = '10.15.82.85';
 
   // ============================================
   // BASE URLS (IMPORTANT: Auth uses NO /api prefix!)
@@ -34,7 +34,7 @@ class ApiConfig {
     // Otherwise use defaults based on platform
     if (Platform.isAndroid) {
       // Android emulator uses 10.0.2.2 to access host machine's localhost
-      return 'http://10.0.2.2:5000';
+      return 'http://10.15.82.85:5000';
     } else if (Platform.isIOS) {
       // iOS simulator can use localhost directly
       return 'http://localhost:5000';
@@ -56,7 +56,7 @@ class ApiConfig {
 
     // Otherwise use defaults based on platform
     if (Platform.isAndroid) {
-      return 'http://10.0.2.2:5000/api';
+      return 'http://10.15.82.85:5000/api';
     } else if (Platform.isIOS) {
       return 'http://localhost:5000/api';
     }
