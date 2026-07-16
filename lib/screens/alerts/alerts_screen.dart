@@ -5,7 +5,7 @@ import '../../services/alert_service.dart';
 import '../../services/auth_service.dart';
 import '../../models/alert_model.dart';
 import '../../config/app_theme.dart';
-import '../../widgets/loading_widget.dart';
+
 import '../../widgets/error_widget.dart';
 import '../../widgets/empty_state_widget.dart';
 import '../../widgets/status_badge.dart';
@@ -250,7 +250,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         foregroundColor: AppTheme.primaryColor,
-                        side: BorderSide(color: AppTheme.primaryColor.withOpacity(0.5)),
+                        side: BorderSide(color: AppTheme.primaryColor.withValues(alpha: 0.5)),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
                         ),
@@ -314,8 +314,8 @@ class _AlertsScreenState extends State<AlertsScreen> {
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: alert.acknowledged 
-                                ? AppTheme.successColor.withOpacity(0.1)
-                                : AppTheme.errorColor.withOpacity(0.1),
+                                ? AppTheme.successColor.withValues(alpha: 0.1)
+                                : AppTheme.errorColor.withValues(alpha: 0.1),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(

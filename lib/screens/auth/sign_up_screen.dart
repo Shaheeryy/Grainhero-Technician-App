@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:grainhero_technician_app/config/api_config.dart';
 import 'package:grainhero_technician_app/config/app_theme.dart';
+import 'package:grainhero_technician_app/config/auth_theme.dart';
 import 'package:grainhero_technician_app/screens/auth/login_screen.dart';
 import 'package:grainhero_technician_app/utils/secure_storage.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
@@ -201,291 +202,368 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      body: Container(
-        decoration: const BoxDecoration(
-          color: AppTheme.backgroundColor,
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Back button
-              Align(
-                alignment: Alignment.topLeft,
-                child: Padding(
-                  padding: const EdgeInsets.all(AppTheme.spacingL),
-                  child: IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.arrow_back_ios),
-                    style: IconButton.styleFrom(
-                      backgroundColor: AppTheme.surfaceColor,
-                      padding: const EdgeInsets.all(12),
+      body: Stack(
+        children: [
+          // Background Image with green overlay
+          Container(
+            width: size.width,
+            height: size.height,
+            decoration: const BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage('assets/images/wheat_background.png'),
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          Container(
+            width: size.width,
+            height: size.height,
+            color: AuthTheme.greenOverlay.withOpacity(0.85),
+          ),
+
+          // Content
+          SafeArea(
+            bottom: false,
+            child: Column(
+              children: [
+                // Back button
+                Align(
+                  alignment: Alignment.topLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
                     ),
                   ),
                 ),
-              ),
-
-              // Main content - fully scrollable
-              Expanded(
-                child: SingleChildScrollView(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppTheme.spacingXXL,
-                    ),
-                    child: Form(
-                      key: _formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // Header
-                          const Text(
-                            'CREATE ACCOUNT',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.textPrimary,
-                              letterSpacing: 1.5,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          
-                          const SizedBox(height: 8),
-                          
-                          const Text(
-                            'Fill in your details to get started',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: AppTheme.textSecondary,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          
-                          const SizedBox(height: 32),
-
-                          // Invitation Token field
-                          _buildUnderlineTextField(
-                            controller: invitationTokenController,
-                            icon: Icons.vpn_key_outlined,
-                            hintText: 'Invitation Token (if provided)',
-                          ),
-
-                          const SizedBox(height: 20),
-
-                          // Email field
-                          _buildUnderlineTextField(
-                            controller: emailController,
-                            icon: Icons.email_outlined,
-                            hintText: 'Email',
-                            keyboardType: TextInputType.emailAddress,
-                            readOnly: widget.prefilledEmail != null,
-                            validator: (val) {
-                              if (val == null || val.isEmpty) return 'Email required';
-                              if (!val.contains('@')) return 'Invalid email';
-                              return null;
-                            },
-                          ),
-                          
-                          const SizedBox(height: 20),
-                          
-                          // Full name field
-                          _buildUnderlineTextField(
-                            controller: nameController,
-                            icon: Icons.person_outline,
-                            hintText: 'Full Name',
-                            validator: (val) =>
-                                val == null || val.isEmpty ? 'Name required' : null,
-                          ),
-                          
-                          const SizedBox(height: 20),
-                          
-                          // Phone field with international format
-                          Container(
-                            decoration: BoxDecoration(
-                              border: Border(
-                                bottom: BorderSide(color: AppTheme.dividerColor),
-                              ),
-                            ),
-                            child: IntlPhoneField(
-                              initialCountryCode: 'PK',
-                              decoration: InputDecoration(
-                                hintText: 'Phone Number',
-                                hintStyle: TextStyle(
-                                  color: AppTheme.textHint,
-                                  fontSize: 14,
+                
+                // Logo and Title
+                Center(
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 80,
+                        height: 80,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Center(
+                              child: ClipRRect(
+                                borderRadius: BorderRadiusGeometry.circular(23),
+                                child: Image.asset(
+                                  'assets/images/logo_grain.png',
+                                  width: 85,
+                                  height: 85,
+                                  fit: BoxFit.contain,
+                                
                                 ),
-                                border: InputBorder.none,
-                                enabledBorder: InputBorder.none,
-                                focusedBorder: InputBorder.none,
-                                contentPadding: const EdgeInsets.symmetric(vertical: 12),
                               ),
-                              style: const TextStyle(
-                                fontSize: 15,
-                                color: AppTheme.textPrimary,
+                            ),
+                      ),
+                      const SizedBox(height: 16),
+                      const Text(
+                        'GrainHero',
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 40),
+
+                // Bottom Sheet Card
+                Expanded(
+                  child: Container(
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
+                      color: AuthTheme.beigeBackground,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(40),
+                        topRight: Radius.circular(40),
+                      ),
+                    ),
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 32,
+                      ),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const Text(
+                              'CREATE ACCOUNT',
+                              style: TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                                color: AuthTheme.textPrimary,
                               ),
-                              dropdownTextStyle: const TextStyle(
-                                fontSize: 15,
-                                color: AppTheme.textPrimary,
+                              textAlign: TextAlign.center,
+                            ),
+                            
+                            const SizedBox(height: 8),
+                            
+                            const Text(
+                              'Fill in your details to get started',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: AuthTheme.textSecondary,
                               ),
-                              onChanged: (phone) {
-                                phoneNumber = phone.number;
-                                countryCode = '+${phone.countryCode}';
+                              textAlign: TextAlign.center,
+                            ),
+                            
+                            const SizedBox(height: 32),
+
+                            // Invitation Token field
+                            _buildOutlinedTextField(
+                              controller: invitationTokenController,
+                              icon: Icons.vpn_key_outlined,
+                              hintText: 'Invitation Token (if provided)',
+                            ),
+
+                            const SizedBox(height: 16),
+
+                            // Email field
+                            _buildOutlinedTextField(
+                              controller: emailController,
+                              icon: Icons.email_outlined,
+                              hintText: 'Email',
+                              keyboardType: TextInputType.emailAddress,
+                              readOnly: widget.prefilledEmail != null,
+                              validator: (val) {
+                                if (val == null || val.isEmpty) return 'Email required';
+                                if (!val.contains('@')) return 'Invalid email';
+                                return null;
                               },
+                            ),
+                            
+                            const SizedBox(height: 16),
+                            
+                            // Full name field
+                            _buildOutlinedTextField(
+                              controller: nameController,
+                              icon: Icons.person_outline,
+                              hintText: 'Full Name',
                               validator: (val) =>
-                                  val == null || val.number.isEmpty ? 'Phone required' : null,
+                                  val == null || val.isEmpty ? 'Name required' : null,
                             ),
-                          ),
-                          
-                          const SizedBox(height: 20),
-                          
-                          // Password field
-                          _buildUnderlineTextField(
-                            controller: passwordController,
-                            icon: Icons.lock_outline,
-                            hintText: 'Password',
-                            obscureText: _obscurePassword,
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscurePassword
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined,
-                                color: AppTheme.textSecondary,
-                                size: 20,
+                            
+                            const SizedBox(height: 16),
+                            
+                            // Phone field with international format
+                            Container(
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  color: Colors.transparent,
+                                  border: Border.all(
+                                    color: AuthTheme.borderLight,
+                                    width: 1,
+                                  ),
+                                  borderRadius: BorderRadius.circular(28),
+                                ),
+                                child: IntlPhoneField(
+                                  initialCountryCode: 'PK',
+
+                                  dropdownIcon: const Icon(
+                                    Icons.keyboard_arrow_down,
+                                    color: AuthTheme.textSecondary,
+                                    size: 20,
+                                  ),
+
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    color: AuthTheme.textPrimary,
+                                  ),
+
+                                  dropdownTextStyle: const TextStyle(
+                                    fontSize: 15,
+                                    color: AuthTheme.textPrimary,
+                                  ),
+
+                                  flagsButtonPadding: const EdgeInsets.only(left: 12),
+
+                                  disableLengthCheck: true,
+
+                                  decoration: const InputDecoration(
+                                    hintText: 'Phone Number',
+                                    hintStyle: TextStyle(
+                                      color: AuthTheme.textHint,
+                                      fontSize: 15,
+                                    ),
+
+                                    border: InputBorder.none,
+                                    enabledBorder: InputBorder.none,
+                                    focusedBorder: InputBorder.none,
+                                    errorBorder: InputBorder.none,
+                                    focusedErrorBorder: InputBorder.none,
+
+                                    counterText: '',
+
+                                    filled: false,
+                                    isDense: true,
+
+                                    contentPadding: EdgeInsets.symmetric(
+                                      vertical: 18,
+                                    ),
+                                  ),
+
+                                  onChanged: (phone) {
+                                    phoneNumber = phone.number;
+                                    countryCode = '+${phone.countryCode}';
+                                  },
+
+                                  validator: (val) {
+                                    if (val == null || val.number.trim().isEmpty) {
+                                      return 'Phone required';
+                                    }
+                                    return null;
+                                  },
+                                ),
                               ),
-                              onPressed: () {
-                                setState(() {
-                                  _obscurePassword = !_obscurePassword;
-                                });
+                            
+                            const SizedBox(height: 16),
+                            
+                            // Password field
+                            _buildOutlinedTextField(
+                              controller: passwordController,
+                              icon: Icons.lock_outline,
+                              hintText: 'Password',
+                              obscureText: _obscurePassword,
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword
+                                      ? Icons.visibility_off_outlined
+                                      : Icons.visibility_outlined,
+                                  color: AuthTheme.textSecondary,
+                                  size: 20,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _obscurePassword = !_obscurePassword;
+                                  });
+                                },
+                              ),
+                              validator: (val) {
+                                if (val == null || val.isEmpty) return 'Enter password';
+                                if (val.length < 6) return 'Minimum 6 characters';
+                                return null;
                               },
                             ),
-                            validator: (val) {
-                              if (val == null || val.isEmpty) return 'Enter password';
-                              if (val.length < 6) return 'Minimum 6 characters';
-                              return null;
-                            },
-                          ),
-                          
-                          const SizedBox(height: 20),
-                          
-                          // Confirm password field
-                          _buildUnderlineTextField(
-                            controller: confirmPasswordController,
-                            icon: Icons.lock_outline,
-                            hintText: 'Confirm Password',
-                            obscureText: _obscureConfirmPassword,
-                            suffixIcon: IconButton(
-                              icon: Icon(
-                                _obscureConfirmPassword
-                                    ? Icons.visibility_outlined
-                                    : Icons.visibility_off_outlined,
-                                color: AppTheme.textSecondary,
-                                size: 20,
+                            
+                            const SizedBox(height: 16),
+                            
+                            // Confirm password field
+                            _buildOutlinedTextField(
+                              controller: confirmPasswordController,
+                              icon: Icons.lock_outline,
+                              hintText: 'Confirm Password',
+                              obscureText: _obscureConfirmPassword,
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscureConfirmPassword
+                                      ? Icons.visibility_off_outlined
+                                      : Icons.visibility_outlined,
+                                  color: AuthTheme.textSecondary,
+                                  size: 20,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _obscureConfirmPassword = !_obscureConfirmPassword;
+                                  });
+                                },
                               ),
-                              onPressed: () {
-                                setState(() {
-                                  _obscureConfirmPassword = !_obscureConfirmPassword;
-                                });
-                              },
+                              validator: (val) => val != passwordController.text
+                                  ? "Passwords don't match"
+                                  : null,
                             ),
-                            validator: (val) => val != passwordController.text
-                                ? "Passwords don't match"
-                                : null,
-                          ),
-                          
-                          const SizedBox(height: 40),
-                          
-                          // Sign up button with gradient
-                          Container(
-                            height: 50,
-                            decoration: BoxDecoration(
-                              gradient: AppTheme.primaryGradient,
-                              borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: AppTheme.primaryColor.withOpacity(0.3),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
+                            
+                            const SizedBox(height: 32),
+                            
+                            // Sign up button
+                            SizedBox(
+                              height: 52,
+                              child: ElevatedButton(
+                                onPressed: _isLoading ? null : _signup,
+                                style: AuthTheme.primaryButtonStyle,
+                                child: _isLoading
+                                    ? const SizedBox(
+                                        height: 22,
+                                        width: 22,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.5,
+                                          valueColor: AlwaysStoppedAnimation<Color>(
+                                            Colors.white,
+                                          ),
+                                        ),
+                                      )
+                                    : const Text(
+                                        'SIGN UP',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 1.5,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                            
+                            const SizedBox(height: 24),
+                            
+                            // Login link
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Text(
+                                  "Already Have An Account? ",
+                                  style: TextStyle(
+                                    color: AuthTheme.textSecondary,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                                GestureDetector(
+                                  onTap: () {
+                                    Navigator.of(context).pushReplacement(
+                                      MaterialPageRoute(builder: (_) => const LoginScreen()),
+                                    );
+                                  },
+                                  child: const Text(
+                                    'Login',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      color: AuthTheme.primaryGreen,
+                                      fontSize: 14,
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
-                            child: ElevatedButton(
-                              onPressed: _isLoading ? null : _signup,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.transparent,
-                                shadowColor: Colors.transparent,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                                ),
-                              ),
-                              child: _isLoading
-                                  ? const SizedBox(
-                                      height: 22,
-                                      width: 22,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2.5,
-                                        valueColor: AlwaysStoppedAnimation<Color>(
-                                          Colors.white,
-                                        ),
-                                      ),
-                                    )
-                                  : const Text(
-                                      'SIGN UP',
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 1.5,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                            ),
-                          ),
-                          
-                          const SizedBox(height: 24),
-                          
-                          // Login link
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Text(
-                                "Already Have An Account? ",
-                                style: TextStyle(
-                                  color: AppTheme.textSecondary,
-                                  fontSize: 13,
-                                ),
-                              ),
-                              GestureDetector(
-                                onTap: () {
-                                  Navigator.of(context).pushReplacement(
-                                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                                  );
-                                },
-                                child: const Text(
-                                  'Login',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: AppTheme.primaryColor,
-                                    fontSize: 13,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          
-                          const SizedBox(height: 32),
-                        ],
+                            
+                            const SizedBox(height: 32),
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
 
-  Widget _buildUnderlineTextField({
+  Widget _buildOutlinedTextField({
     required TextEditingController controller,
     required IconData icon,
     required String hintText,
@@ -502,46 +580,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
       readOnly: readOnly,
       style: const TextStyle(
         fontSize: 15,
-        color: AppTheme.textPrimary,
+        color: AuthTheme.textPrimary,
       ),
-      decoration: InputDecoration(
+      decoration: AuthTheme.getInputDecoration(
         hintText: hintText,
-        hintStyle: const TextStyle(
-          color: AppTheme.textHint,
-          fontSize: 14,
-        ),
-        prefixIcon: Container(
-          margin: const EdgeInsets.only(right: 12),
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppTheme.primaryColor.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(
-            icon,
-            color: AppTheme.primaryColor,
-            size: 20,
-          ),
-        ),
-        prefixIconConstraints: const BoxConstraints(
-          minWidth: 50,
-          minHeight: 40,
-        ),
+        prefixIcon: icon,
         suffixIcon: suffixIcon,
-        filled: false,
-        border: const UnderlineInputBorder(
-          borderSide: BorderSide(color: AppTheme.dividerColor),
-        ),
-        enabledBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: AppTheme.dividerColor),
-        ),
-        focusedBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: AppTheme.primaryColor, width: 2),
-        ),
-        errorBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: AppTheme.errorColor),
-        ),
-        contentPadding: const EdgeInsets.symmetric(vertical: 12),
       ),
       validator: validator,
     );
