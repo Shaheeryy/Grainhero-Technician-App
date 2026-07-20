@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
 import '../../config/app_theme.dart';
-import 'login_screen.dart';
+import 'welcome_screen.dart';
 import '../main/main_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -37,7 +37,7 @@ class _SplashScreenState extends State<SplashScreen> {
       );
     } else {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
+        MaterialPageRoute(builder: (_) => WelcomeScreen()),
       );
     }
   }

@@ -16,7 +16,6 @@ import '../qr_scanner/qr_scanner_screen.dart';
 import '../alerts/alerts_screen.dart';
 import '../grain_batches/grain_batch_detail_screen.dart';
 import 'package:grainhero_technician_app/services/alert_service.dart';
-import 'package:grainhero_technician_app/widgets/empty_state_widget.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});

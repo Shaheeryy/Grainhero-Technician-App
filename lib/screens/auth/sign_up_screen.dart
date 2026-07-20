@@ -7,6 +7,7 @@ import 'package:grainhero_technician_app/config/auth_theme.dart';
 import 'package:grainhero_technician_app/screens/auth/login_screen.dart';
 import 'package:grainhero_technician_app/utils/secure_storage.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
+import 'package:grainhero_technician_app/widgets/auth_button.dart';
 
 class SignUpScreen extends StatefulWidget {
   final String? prefilledEmail;
@@ -489,32 +490,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             
                             const SizedBox(height: 32),
                             
-                            // Sign up button
-                            SizedBox(
-                              height: 52,
-                              child: ElevatedButton(
-                                onPressed: _isLoading ? null : _signup,
-                                style: AuthTheme.primaryButtonStyle,
-                                child: _isLoading
-                                    ? const SizedBox(
-                                        height: 22,
-                                        width: 22,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2.5,
-                                          valueColor: AlwaysStoppedAnimation<Color>(
-                                            Colors.white,
-                                          ),
-                                        ),
-                                      )
-                                    : const Text(
-                                        'SIGN UP',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                          letterSpacing: 1.5,
-                                        ),
-                                      ),
-                              ),
+                            AuthButton(
+                              text: 'SIGN UP',
+                              isLoading: _isLoading,
+                              onPressed: _signup,
                             ),
                             
                             const SizedBox(height: 24),

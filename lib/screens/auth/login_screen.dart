@@ -10,6 +10,7 @@ import 'package:grainhero_technician_app/screens/auth/forgot_password_screen.dar
 import 'package:grainhero_technician_app/screens/auth/sign_up_screen.dart';
 import 'package:grainhero_technician_app/utils/secure_storage.dart';
 import 'package:grainhero_technician_app/services/notification_service.dart';
+import 'package:grainhero_technician_app/widgets/auth_button.dart';
 
 class LoginScreen extends StatefulWidget {
   final String? email;
@@ -258,6 +259,16 @@ class _LoginScreenState extends State<LoginScreen> {
                 bottom: false,
                 child: Column(
                   children: [
+                    Align(
+                  alignment: Alignment.topLeft,
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.arrow_back_ios, color: Colors.white),
+                    ),
+                  ),
+                ),
                     const SizedBox(height: 40),
                     // Logo and Title
                     Center(
@@ -396,32 +407,10 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                                 const SizedBox(height: 24),
 
-                                // Submit Button
-                                SizedBox(
-                                  height: 52,
-                                  child: ElevatedButton(
-                                    onPressed: _isLoading ? null : _login,
-                                    style: AuthTheme.primaryButtonStyle,
-                                    child: _isLoading
-                                        ? const SizedBox(
-                                            height: 22,
-                                            width: 22,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2.5,
-                                              valueColor: AlwaysStoppedAnimation<Color>(
-                                                Colors.white,
-                                              ),
-                                            ),
-                                          )
-                                        : const Text(
-                                            'Login',
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
-                                              letterSpacing: 0.5,
-                                            ),
-                                          ),
-                                  ),
+                                AuthButton(
+                                  text: 'Login',
+                                  isLoading: _isLoading,
+                                  onPressed: _login,
                                 ),
                                 const SizedBox(height: 24),
 
