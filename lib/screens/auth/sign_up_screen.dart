@@ -8,7 +8,7 @@ import 'package:grainhero_technician_app/screens/auth/login_screen.dart';
 import 'package:grainhero_technician_app/utils/secure_storage.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
 import 'package:grainhero_technician_app/widgets/auth_button.dart';
-
+import 'package:grainhero_technician_app/widgets/auth_text_field.dart';
 class SignUpScreen extends StatefulWidget {
   final String? prefilledEmail;
   const SignUpScreen({super.key, this.prefilledEmail});
@@ -326,7 +326,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             const SizedBox(height: 32),
 
                             // Invitation Token field
-                            _buildOutlinedTextField(
+                            AuthTextField(
                               controller: invitationTokenController,
                               icon: Icons.vpn_key_outlined,
                               hintText: 'Invitation Token (if provided)',
@@ -335,7 +335,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             const SizedBox(height: 16),
 
                             // Email field
-                            _buildOutlinedTextField(
+                            AuthTextField(
                               controller: emailController,
                               icon: Icons.email_outlined,
                               hintText: 'Email',
@@ -351,7 +351,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             const SizedBox(height: 16),
                             
                             // Full name field
-                            _buildOutlinedTextField(
+                            AuthTextField(
                               controller: nameController,
                               icon: Icons.person_outline,
                               hintText: 'Full Name',
@@ -435,7 +435,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             const SizedBox(height: 16),
                             
                             // Password field
-                            _buildOutlinedTextField(
+                            AuthTextField(
                               controller: passwordController,
                               icon: Icons.lock_outline,
                               hintText: 'Password',
@@ -464,7 +464,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             const SizedBox(height: 16),
                             
                             // Confirm password field
-                            _buildOutlinedTextField(
+                            AuthTextField(
                               controller: confirmPasswordController,
                               icon: Icons.lock_outline,
                               hintText: 'Confirm Password',
@@ -542,31 +542,4 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  Widget _buildOutlinedTextField({
-    required TextEditingController controller,
-    required IconData icon,
-    required String hintText,
-    TextInputType? keyboardType,
-    bool obscureText = false,
-    bool readOnly = false,
-    Widget? suffixIcon,
-    String? Function(String?)? validator,
-  }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: keyboardType,
-      obscureText: obscureText,
-      readOnly: readOnly,
-      style: const TextStyle(
-        fontSize: 15,
-        color: AuthTheme.textPrimary,
-      ),
-      decoration: AuthTheme.getInputDecoration(
-        hintText: hintText,
-        prefixIcon: icon,
-        suffixIcon: suffixIcon,
-      ),
-      validator: validator,
-    );
-  }
 }

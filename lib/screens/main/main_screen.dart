@@ -9,6 +9,7 @@ import '../profile/profile_screen.dart';
 import '../qr_scanner/qr_scanner_screen.dart';
 import '../silos/silos_screen.dart';
 import '../../config/app_theme.dart';
+import '../../config/auth_theme.dart';
 
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key});
@@ -29,12 +30,38 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     const ProfileScreen(),
   ];
 
-  final List<_NavItem> _navItems = [
-    _NavItem(icon: Icons.home_outlined, activeIcon: Icons.home_rounded, label: 'Home'),
-    _NavItem(icon: Icons.domain_outlined, activeIcon: Icons.domain_rounded, label: 'Silos'),
-    _NavItem(icon: Icons.settings_input_component_outlined, activeIcon: Icons.settings_input_component_rounded, label: 'Actuators'),
-    _NavItem(icon: Icons.sensors_outlined, activeIcon: Icons.sensors_rounded, label: 'Sensors'),
-    _NavItem(icon: Icons.person_outline_rounded, activeIcon: Icons.person_rounded, label: 'Profile'),
+  // M3 Navigation Destinations
+  final List<NavigationDestination> _destinations = const [
+    NavigationDestination(
+      tooltip: 'Home',
+      icon: Icon(Icons.home_outlined),
+      selectedIcon: Icon(Icons.home_rounded),
+      label: 'Home',
+    ),
+    NavigationDestination(
+      tooltip: 'Silos',
+      icon: Icon(Icons.domain_outlined),
+      selectedIcon: Icon(Icons.domain),
+      label: 'Silos',
+    ),
+    NavigationDestination(
+      tooltip: 'Actuators',
+      icon: Icon(Icons.settings_input_component_outlined),
+      selectedIcon: Icon(Icons.settings_input_component),
+      label: 'Actuators',
+    ),
+    NavigationDestination(
+      tooltip: 'Sensors',
+      icon: Icon(Icons.sensors_outlined),
+      selectedIcon: Icon(Icons.sensors),
+      label: 'Sensors',
+    ),
+    NavigationDestination(
+      tooltip: 'Profile',
+      icon: Icon(Icons.person_outline_rounded),
+      selectedIcon: Icon(Icons.person_rounded),
+      label: 'Profile',
+    ),
   ];
 
   @override
@@ -110,84 +137,76 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   Widget _buildBottomNavBar() {
     return Container(
-      margin: const EdgeInsets.fromLTRB(10, 0, 10, 20),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceColor,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: AppTheme.borderColor, width: 0.5),
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(28),
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.4),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            color: AuthTheme.primaryGreen.withValues(alpha: 0.12),
+            blurRadius: 24,
+            offset: const Offset(0, -4),
           ),
         ],
       ),
-      child: SafeArea(
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: List.generate(_navItems.length, (index) {
-              return Expanded(child: _buildNavItem(index));
-            }),
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(28),
+        ),
+        child: NavigationBarTheme(
+          data: NavigationBarThemeData(
+            height: 82,
+            backgroundColor: AuthTheme.surface,
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
+            indicatorColor: AuthTheme.primaryGreen.withValues(alpha: 0.16),
+            indicatorShape: const StadiumBorder(),
+            iconTheme: WidgetStateProperty.resolveWith<IconThemeData>(
+              (states) {
+                final bool selected = states.contains(WidgetState.selected);
+                return IconThemeData(
+                  color: selected ? AuthTheme.primaryGreen : AuthTheme.textPrimary,
+                  size: selected ? 26 : 24,
+                  weight: selected ? 600 : 400,
+                );
+              },
+            ),
+            labelTextStyle: WidgetStateProperty.resolveWith<TextStyle>(
+              (states) {
+                final bool selected = states.contains(WidgetState.selected);
+                return TextStyle(
+                  color: selected ? AuthTheme.greenOverlay : AuthTheme.textPrimary,
+                  fontSize: 12,
+                  height: 1.25,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  letterSpacing: selected ? 0.1 : 0,
+                );
+              },
+            ),
+            overlayColor: WidgetStateProperty.resolveWith<Color?>(
+              (states) {
+                if (states.contains(WidgetState.pressed)) {
+                  return AuthTheme.primaryGreen.withValues(alpha: 0.10);
+                }
+                if (states.contains(WidgetState.hovered)) {
+                  return AuthTheme.primaryGreen.withValues(alpha: 0.06);
+                }
+                return Colors.transparent;
+              },
+            ),
+          ),
+          child: NavigationBar(
+            selectedIndex: _currentIndex,
+            onDestinationSelected: (index) {
+              setState(() => _currentIndex = index);
+            },
+            animationDuration: const Duration(milliseconds: 500),
+            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+            maintainBottomViewPadding: true,
+            destinations: _destinations,
           ),
         ),
       ),
     );
   }
-
-  Widget _buildNavItem(int index) {
-    final item = _navItems[index];
-    final isSelected = _currentIndex == index;
-
-    return GestureDetector(
-      onTap: () => setState(() => _currentIndex = index),
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        curve: Curves.easeInOut,
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AppTheme.primaryColor.withOpacity(0.12)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isSelected ? item.activeIcon : item.icon,
-              size: 22,
-              color: isSelected ? AppTheme.primaryColor : AppTheme.textSecondary,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              item.label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 9,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                color: isSelected ? AppTheme.primaryColor : AppTheme.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _NavItem {
-  final IconData icon;
-  final IconData activeIcon;
-  final String label;
-
-  _NavItem({
-    required this.icon,
-    required this.activeIcon,
-    required this.label,
-  });
 }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../config/app_theme.dart';
+import '../../config/auth_theme.dart';
+import '../../widgets/silos_widgets.dart';
 import '../../models/silo_model.dart';
 import '../../services/silo_service.dart';
 import '../../widgets/custom_card.dart';
@@ -77,116 +79,67 @@ class _SilosScreenState extends State<SilosScreen> {
     });
   }
 
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      appBar: AppBar(
-        title: const Text('Silos', style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold)),
-        backgroundColor: AppTheme.surfaceColor,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: AppTheme.textPrimary),
-            onPressed: _loadSilos,
-          ),
-        ],
-      ),
+      backgroundColor: AuthTheme.beigeBackground,
       body: Column(
         children: [
-          _buildSearchAndFilter(),
+          SilosHeader(
+            searchController: _searchController,
+            selectedFilter: _statusFilter,
+            filters: const ['All', 'Active', 'Maintenance', 'Offline'],
+            isRefreshing: _isLoading,
+            onRefreshPressed: _loadSilos,
+            onSearchChanged: (_) {
+              _filterSilos();
+            },
+            onClearSearch: () {
+              _searchController.clear();
+              _filterSilos();
+            },
+            onFilterSelected: (filter) {
+              setState(() {
+                _statusFilter = filter;
+              });
+              _filterSilos();
+            },
+          ),
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor))
-                : _error != null
-                    ? Center(child: Text(_error!, style: const TextStyle(color: AppTheme.errorColor)))
-                    : _filteredSilos.isEmpty
-                        ? _buildEmptyState()
-                        : ListView.builder(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: _filteredSilos.length,
-                            itemBuilder: (context, index) {
-                              final silo = _filteredSilos[index];
-                              return _buildSiloCard(silo);
-                            },
+            child: RefreshIndicator(
+              color: AuthTheme.primaryGreen,
+              backgroundColor: Colors.white,
+              onRefresh: _loadSilos,
+              child: _isLoading && _silos.isEmpty
+                  ? const Center(child: CircularProgressIndicator(color: AuthTheme.primaryGreen))
+                  : _error != null
+                      ? Center(child: Text(_error!, style: const TextStyle(color: AuthTheme.error)))
+                      : ListView(
+                          physics: const AlwaysScrollableScrollPhysics(
+                            parent: BouncingScrollPhysics(),
                           ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSearchAndFilter() {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-      color: AppTheme.surfaceColor,
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _searchController,
-              style: const TextStyle(color: AppTheme.textPrimary),
-              decoration: InputDecoration(
-                hintText: 'Search Silos...',
-                hintStyle: const TextStyle(color: AppTheme.textSecondary),
-                prefixIcon: const Icon(Icons.search, color: AppTheme.textSecondary),
-                filled: true,
-                fillColor: AppTheme.backgroundColor,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              ),
+                          padding: const EdgeInsets.fromLTRB(24, 48, 24, 40),
+                          children: [
+                            if (_filteredSilos.isEmpty) ...[
+                              SizedBox(height: MediaQuery.sizeOf(context).height * 0.08),
+                              EmptySilosState(
+                                hasSearchOrFilter: _searchController.text.trim().isNotEmpty || _statusFilter != 'All',
+                                onClearPressed: () {
+                                  _searchController.clear();
+                                  setState(() {
+                                    _statusFilter = 'All';
+                                  });
+                                  _filterSilos();
+                                },
+                              ),
+                            ] else ...[
+                              ..._filteredSilos.map((silo) => _buildSiloCard(silo)),
+                            ],
+                          ],
+                        ),
             ),
           ),
-          const SizedBox(width: 12),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-            decoration: BoxDecoration(
-              color: AppTheme.backgroundColor,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _statusFilter,
-                dropdownColor: AppTheme.surfaceColor,
-                icon: const Icon(Icons.filter_list, color: AppTheme.primaryColor),
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() => _statusFilter = value);
-                    _filterSilos();
-                  }
-                },
-                items: ['All', 'Active', 'Maintenance', 'Offline'].map((status) {
-                  return DropdownMenuItem(
-                    value: status,
-                    child: Text(
-                      status,
-                      style: const TextStyle(
-                        color: AppTheme.textPrimary, 
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-  
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
-          Icon(Icons.domain_disabled_outlined, size: 60, color: AppTheme.textSecondary),
-          SizedBox(height: 16),
-          Text('No silos found', style: TextStyle(color: AppTheme.textSecondary, fontSize: 16)),
         ],
       ),
     );
@@ -196,123 +149,147 @@ class _SilosScreenState extends State<SilosScreen> {
     final fillPercent = silo.fillPercentage;
     final isFull = fillPercent > 0.9;
     final isEmpty = fillPercent < 0.1;
-    final statusColor = silo.status.toLowerCase() == 'active' ? AppTheme.successColor : AppTheme.warningColor;
+    final statusColor = silo.status.toLowerCase() == 'active' ? AuthTheme.primaryGreen : const Color(0xFFFF5C5C);
+    
+    final temp = silo.temperature ?? 0;
+    final hum = silo.humidity ?? 0;
+    final tvoc = silo.tvoc ?? 0;
 
-    return CustomCard(
+    return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => SiloDetailScreen(silo: silo)),
-        );
-      },
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 50,
-                height: 50,
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.domain, color: AppTheme.primaryColor, size: 28),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      silo.name,
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
-                    ),
-                    Text(
-                      '${silo.grainType} • ${silo.capacity.toInt()}kg',
-                      style: const TextStyle(fontSize: 14, color: AppTheme.textSecondary),
-                    ),
-                  ],
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  silo.status.toUpperCase(),
-                  style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 12),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${(fillPercent * 100).toStringAsFixed(1)}%',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: isFull ? AppTheme.errorColor : isEmpty ? AppTheme.textSecondary : AppTheme.primaryColor,
-                      ),
-                    ),
-                    const Text('Occupancy', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: _buildMetric(Icons.thermostat, '${silo.temperature}°C', 'Temp'),
-              ),
-              Expanded(
-                child: _buildMetric(Icons.water_drop, '${silo.humidity}%', 'Humidity'),
-              ),
-              Expanded(
-                child: _buildMetric(Icons.air, '${silo.tvoc} ppb', 'TVOC'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: fillPercent,
-              backgroundColor: AppTheme.dividerColor,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                isFull ? AppTheme.errorColor : AppTheme.primaryColor,
-              ),
-              minHeight: 8,
-            ),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AuthTheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AuthTheme.primaryGreen.withValues(alpha: 0.20), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: AuthTheme.primaryGreen.withValues(alpha: 0.12),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
+      ),
+      child: InkWell(
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => SiloDetailScreen(silo: silo)),
+          );
+        },
+        borderRadius: BorderRadius.circular(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        silo.name,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AuthTheme.textPrimary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${silo.grainType} • ${silo.capacity.toInt()}kg',
+                        style: const TextStyle(fontSize: 14, color: AuthTheme.textHint),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: statusColor.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    silo.status.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: statusColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '${(fillPercent * 100).toStringAsFixed(1)}%',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: isFull ? AuthTheme.error : isEmpty ? AuthTheme.textHint : AuthTheme.primaryGreen,
+                        ),
+                      ),
+                      const Text('Occupancy', style: TextStyle(fontSize: 12, color: AuthTheme.textHint)),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: _buildMetric(Icons.thermostat, '${temp.toStringAsFixed(1)}°C', 'Temp', const Color(0xFFFF5C5C)),
+                ),
+                Expanded(
+                  child: _buildMetric(Icons.water_drop, '${hum.toStringAsFixed(1)}%', 'Hum', const Color(0xFF4D9FFF)),
+                ),
+                Expanded(
+                  child: _buildMetric(Icons.air, '${tvoc.toStringAsFixed(0)}ppb', 'TVOC', const Color(0xFFA970FF)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: LinearProgressIndicator(
+                value: fillPercent,
+                backgroundColor: AuthTheme.borderLight,
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  isFull ? AuthTheme.error : AuthTheme.primaryGreen,
+                ),
+                minHeight: 8,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildMetric(IconData icon, String value, String label) {
+  Widget _buildMetric(IconData icon, String value, String label, Color color) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            Icon(icon, size: 14, color: AppTheme.textSecondary),
-            const SizedBox(width: 2),
+            Icon(icon, size: 16, color: color),
+            const SizedBox(width: 4),
             Flexible(
               child: FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
-                child: Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppTheme.textPrimary)),
+                child: Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AuthTheme.textPrimary)),
               ),
             ),
           ],
         ),
-        Text(label, style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
+        const SizedBox(height: 4),
+        Text(label, style: const TextStyle(fontSize: 11, color: AuthTheme.textHint, fontWeight: FontWeight.w600)),
       ],
     );
   }
