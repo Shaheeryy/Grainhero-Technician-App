@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../config/app_theme.dart';
+import '../../config/app_theme.dart';
 
 /// A modern card widget for displaying sensor readings with temperature and humidity
 /// Matches the reference design with left accent border and clean layout

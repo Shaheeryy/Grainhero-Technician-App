@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../config/app_theme.dart';
+import '../../config/app_theme.dart';
 
 /// A modern status badge widget with refined styling
 /// Supports both status and severity modes with appropriate colors

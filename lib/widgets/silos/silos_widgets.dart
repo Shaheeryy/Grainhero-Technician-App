@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../config/auth_theme.dart';
+import '../../config/auth_theme.dart';
 
 class SilosHeader extends StatelessWidget {
   const SilosHeader({

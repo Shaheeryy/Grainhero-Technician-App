@@ -7,8 +7,8 @@ import 'package:grainhero_technician_app/config/auth_theme.dart';
 import 'package:grainhero_technician_app/screens/auth/login_screen.dart';
 import 'package:grainhero_technician_app/utils/secure_storage.dart';
 import 'package:intl_phone_field/intl_phone_field.dart';
-import 'package:grainhero_technician_app/widgets/auth_button.dart';
-import 'package:grainhero_technician_app/widgets/auth_text_field.dart';
+import 'package:grainhero_technician_app/widgets/common/auth_button.dart';
+import 'package:grainhero_technician_app/widgets/common/auth_text_field.dart';
 class SignUpScreen extends StatefulWidget {
   final String? prefilledEmail;
   const SignUpScreen({super.key, this.prefilledEmail});

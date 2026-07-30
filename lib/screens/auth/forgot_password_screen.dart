@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:grainhero_technician_app/widgets/auth_text_field.dart';
+import 'package:grainhero_technician_app/widgets/common/auth_text_field.dart';
 import 'package:provider/provider.dart';
 import 'package:grainhero_technician_app/config/app_theme.dart';
 import 'package:grainhero_technician_app/config/auth_theme.dart';
 import 'package:grainhero_technician_app/services/auth_service.dart';
 import 'package:grainhero_technician_app/screens/auth/reset_password_screen.dart';
-import 'package:grainhero_technician_app/widgets/auth_button.dart';
+import 'package:grainhero_technician_app/widgets/common/auth_button.dart';
+import 'widgets/auth_header.dart';
+import 'widgets/auth_logo.dart';
+import 'widgets/auth_footer.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -90,63 +93,26 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             
                 const SizedBox(height: 15),
             
-                const Text(
-                  "Forgot Password",
-                  style: TextStyle(
-                    fontSize: 30,
-                    fontWeight: FontWeight.bold,
-                    color: AuthTheme.textSecondary,
-                  ),
-                ),
-            
-                const SizedBox(height: 8),
-            
-                const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 20),
-                  child: Text(
-                    "Remember and input your email or phone number below.",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: AuthTheme.textHint,
-                      height: 1.5,
-                    ),
-                  ),
+                // =====================================================
+                // HEADER
+                // =====================================================
+                const AuthHeader(
+                  title: "Forgot Password",
+                  subtitle: "Remember and input your email or phone number below.",
                 ),
             
                 const SizedBox(height: 40),
             
-                // Illustration styled with circular border
-                Container(
-                  width: 190,
-                  height: 190,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AuthTheme.beigeBackground,
-                    border: Border.all(
-                      color: const Color.fromARGB(130, 255, 255, 255),
-                      width: 10,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.06),
-                        blurRadius: 25,
-                        offset: const Offset(0, 10),
-                      ),
-                    ],
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(1.0),
-                    child: ClipOval(
-                      child: Image.asset(
-                        'assets/images/forgot_password.png',
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                  ),
-                ),
+                // =====================================================
+                // ILLUSTRATION LOGO
+                // =====================================================
+                const AuthLogo(imagePath: 'assets/images/forgot_password.png'),
                 
                 const SizedBox(height: 50),
+                
+                // =====================================================
+                // FORM
+                // =====================================================
                 
                 const Align(
                   alignment: Alignment.center,
@@ -190,28 +156,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             
                 const SizedBox(height: 40),
             
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      "Wait, I remember it! ",
-                      style: TextStyle(
-                        color: AuthTheme.textHint,
-                        fontSize: 15,
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: const Text(
-                        "Log In",
-                        style: TextStyle(
-                          color: AuthTheme.primaryGreen,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                        ),
-                      ),
-                    ),
-                  ],
+                // =====================================================
+                // FOOTER
+                // =====================================================
+                AuthFooter(
+                  text: "Wait, I remember it! ",
+                  actionText: "Log In",
+                  onActionTap: () => Navigator.pop(context),
                 ),
             
                 const SizedBox(height: 30),

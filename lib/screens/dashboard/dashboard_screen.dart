@@ -5,12 +5,13 @@ import 'package:provider/provider.dart';
 import 'package:grainhero_technician_app/config/api_config.dart';
 import 'package:grainhero_technician_app/config/app_theme.dart';
 import 'package:grainhero_technician_app/config/auth_theme.dart';
-import 'package:grainhero_technician_app/widgets/dashboard_widgets.dart';
+import 'package:grainhero_technician_app/config/grainhero_colors.dart';
+import 'package:grainhero_technician_app/widgets/dashboard/dashboard_widgets.dart';
 import 'package:grainhero_technician_app/utils/secure_storage.dart';
 import 'package:grainhero_technician_app/services/user_service.dart';
 import 'package:grainhero_technician_app/services/auth_service.dart';
 import 'package:grainhero_technician_app/models/user_model.dart';
-import 'package:grainhero_technician_app/widgets/error_widget.dart';
+import 'package:grainhero_technician_app/widgets/common/error_widget.dart';
 import 'package:grainhero_technician_app/services/grain_batch_service.dart';
 import 'package:grainhero_technician_app/services/silo_service.dart';
 import 'package:grainhero_technician_app/models/silo_model.dart';
@@ -18,6 +19,10 @@ import '../qr_scanner/qr_scanner_screen.dart';
 import '../alerts/alerts_screen.dart';
 import '../grain_batches/grain_batch_detail_screen.dart';
 import 'package:grainhero_technician_app/services/alert_service.dart';
+import 'widgets/dashboard_header.dart';
+import 'widgets/environment_section.dart';
+import 'widgets/active_alerts.dart';
+import 'widgets/dashboard_card.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -257,90 +262,75 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AuthTheme.beigeBackground,
+      backgroundColor: GrainHeroColors.pageBackground,
       body: loading
           ? const Center(
-              child: CircularProgressIndicator(color: AuthTheme.primaryGreen),
+              child: CircularProgressIndicator(color: GrainHeroColors.primary),
             )
           : error != null
               ? AppErrorWidget(message: error!, onRetry: _fetchDashboard)
               : RefreshIndicator(
                   onRefresh: _fetchDashboard,
-                  color: AuthTheme.primaryGreen,
-                  backgroundColor: AuthTheme.surface,
+                  color: GrainHeroColors.primary,
+                  backgroundColor: GrainHeroColors.surface,
                   child: SingleChildScrollView(
                     physics: const AlwaysScrollableScrollPhysics(
                       parent: BouncingScrollPhysics(),
                     ),
                     child: Column(
                       children: [
-                        _buildDashboardHeader(),
+                        // =====================================================
+                        // HEADER
+                        // =====================================================
+                        DashboardHeader(
+                          techName: _techName,
+                          alertsCount: _alerts.length,
+                          onQrPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const QrScannerScreen()),
+                          ),
+                          onAlertsPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const AlertsScreen()),
+                          ).then((_) => _fetchDashboard()),
+                          silosCount: _realSiloCount,
+                          batchesCount: _realBatchCount,
+                          sensorsCount: _getStatValue('Sensors'),
+                        ),
                         Padding(
                           padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              SectionHeader(
-                                title: 'Silo Environments',
-                                actionLabel: 'ADD NEW',
-                                onPressed: () {
-                                  // Can implement add new silo
-                                },
+                              // =====================================================
+                              // SILO ENVIRONMENTS
+                              // =====================================================
+                              SiloEnvironmentSection(
+                                realSiloCount: _realSiloCount,
+                                silos: _silos,
+                                onAddNew: () {},
                               ),
-                              const SizedBox(height: 12),
-                              _buildSilosContent(),
                               
                               const SizedBox(height: 28),
                               
-                              if (_alerts.isNotEmpty) ...[
-                                Row(
-                                  children: [
-                                    const Expanded(
-                                      child: Text(
-                                        'Active Alerts',
-                                        style: TextStyle(
-                                          color: AuthTheme.textPrimary,
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.w700,
-                                          letterSpacing: -0.3,
-                                        ),
-                                      ),
-                                    ),
-                                    Container(
-                                      width: 26,
-                                      height: 26,
-                                      alignment: Alignment.center,
-                                      decoration: const BoxDecoration(
-                                        color: AuthTheme.error,
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Text(
-                                        '${_alerts.length}',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 12),
-                                _buildAlertActionCard(_alerts.first),
-                                const SizedBox(height: 28),
-                              ],
+                              // =====================================================
+                              // ACTIVE ALERTS
+                              // =====================================================
+                              ActiveAlertsSection(
+                                alerts: _alerts,
+                                onAcknowledge: _acknowledgeAlert,
+                              ),
 
-                              if (_recentBatches.isNotEmpty) ...[
-                                SectionHeader(
-                                  title: 'Recent Batches',
-                                  actionLabel: 'VIEW ALL',
-                                  onPressed: () {
-                                    // Handle view all batches
-                                  },
-                                ),
-                                const SizedBox(height: 12),
-                                ..._recentBatches.take(3).map((batch) => _buildBatchCard(batch)),
-                              ],
+                              const SizedBox(height: 28),
+
+                              // =====================================================
+                              // RECENT BATCHES
+                              // =====================================================
+                              RecentBatchesSection(
+                                recentBatches: _recentBatches,
+                                onViewAll: () {},
+                              ),
+                              
                               const SizedBox(height: 100),
                             ],
                           ),

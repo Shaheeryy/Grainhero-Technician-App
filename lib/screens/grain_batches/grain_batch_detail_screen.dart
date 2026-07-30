@@ -2,11 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:grainhero_technician_app/config/app_theme.dart';
 import 'package:grainhero_technician_app/models/grain_batch_model.dart';
 import 'package:grainhero_technician_app/services/grain_batch_service.dart';
-import 'package:grainhero_technician_app/widgets/error_widget.dart';
-import 'package:grainhero_technician_app/widgets/status_badge.dart';
-import 'package:grainhero_technician_app/widgets/kpi_card.dart';
+import 'package:grainhero_technician_app/widgets/common/error_widget.dart';
+import 'package:grainhero_technician_app/widgets/common/status_badge.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class GrainBatchDetailScreen extends StatefulWidget {
   final String batchId;
@@ -21,7 +19,6 @@ class _GrainBatchDetailScreenState extends State<GrainBatchDetailScreen> {
   GrainBatch? _batch;
   bool _loading = true;
   String? _error;
-  bool _updatingStatus = false;
 
   @override
   void initState() {
@@ -52,9 +49,6 @@ class _GrainBatchDetailScreenState extends State<GrainBatchDetailScreen> {
   }
 
   Future<void> _updateStatus(String newStatus) async {
-    setState(() {
-      _updatingStatus = true;
-    });
     try {
       final updated = await _grainBatchService.updateGrainBatch(
         widget.batchId,
@@ -78,12 +72,6 @@ class _GrainBatchDetailScreenState extends State<GrainBatchDetailScreen> {
           backgroundColor: AppTheme.errorColor,
         ),
       );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _updatingStatus = false;
-        });
-      }
     }
   }
 
@@ -164,11 +152,11 @@ class _GrainBatchDetailScreenState extends State<GrainBatchDetailScreen> {
             _buildHeaderCard(),
             const SizedBox(height: AppTheme.spacingL),
             
-            // Key Statistics using KpiCard
+            // Key Statistics
             Row(
               children: [
                 Expanded(
-                  child: KpiCard(
+                  child: _buildKpiCard(
                     title: 'Weight',
                     value: '${_batch!.quantityKg.toStringAsFixed(0)} kg',
                     icon: Icons.scale_outlined,
@@ -177,7 +165,7 @@ class _GrainBatchDetailScreenState extends State<GrainBatchDetailScreen> {
                 ),
                 const SizedBox(width: AppTheme.spacingM),
                 Expanded(
-                  child: KpiCard(
+                  child: _buildKpiCard(
                     title: 'Risk Score',
                     value: '${_batch!.riskScore}',
                     icon: Icons.warning_amber_rounded,
@@ -317,6 +305,57 @@ class _GrainBatchDetailScreenState extends State<GrainBatchDetailScreen> {
     );
   }
 
+  Widget _buildKpiCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color color,
+    String? subtitle,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.spacingL),
+      decoration: AppTheme.cardDecoration,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppTheme.textSecondary,
+                ),
+              ),
+              Icon(icon, size: 20, color: color),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
+          ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: TextStyle(
+                fontSize: 11,
+                color: color.withValues(alpha: 0.8),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   // Helper method for header card remains same...
   Widget _buildHeaderCard() {
     return Container(
@@ -330,7 +369,7 @@ class _GrainBatchDetailScreenState extends State<GrainBatchDetailScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.1),
+                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                 ),
                 child: const Icon(
@@ -363,7 +402,10 @@ class _GrainBatchDetailScreenState extends State<GrainBatchDetailScreen> {
                   ],
                 ),
               ),
-              StatusBadge(status: _batch!.status),
+              GestureDetector(
+                onTap: _showUpdateStatusSheet,
+                child: StatusBadge(status: _batch!.status),
+              ),
             ],
           ),
           const SizedBox(height: AppTheme.spacingL),

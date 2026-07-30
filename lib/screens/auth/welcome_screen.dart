@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:grainhero_technician_app/config/auth_theme.dart';
 import 'package:grainhero_technician_app/screens/auth/login_screen.dart';
 import 'package:grainhero_technician_app/screens/auth/sign_up_screen.dart';
-import 'package:grainhero_technician_app/widgets/auth_button.dart';
+import 'package:grainhero_technician_app/widgets/common/auth_button.dart';
 
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});

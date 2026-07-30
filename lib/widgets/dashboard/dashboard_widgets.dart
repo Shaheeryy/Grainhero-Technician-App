@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../config/auth_theme.dart';
+import '../../config/grainhero_colors.dart';
 
 // ============================================================
 // STATUS OVERVIEW
@@ -25,7 +25,7 @@ class StatusOverview extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 16),
       decoration: BoxDecoration(
-        color: AuthTheme.darkContainer,
+        color: GrainHeroColors.darkContainer,
         borderRadius: BorderRadius.circular(28),
         boxShadow: [
           BoxShadow(
@@ -162,7 +162,7 @@ class SectionHeader extends StatelessWidget {
           child: Text(
             title,
             style: const TextStyle(
-              color: AuthTheme.textPrimary,
+              color: GrainHeroColors.bodyText,
               fontSize: 20,
               height: 1.25,
               fontWeight: FontWeight.w700,
@@ -173,7 +173,7 @@ class SectionHeader extends StatelessWidget {
         TextButton(
           onPressed: onPressed,
           style: TextButton.styleFrom(
-            foregroundColor: AuthTheme.primaryGreen,
+            foregroundColor: GrainHeroColors.primary,
             textStyle: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w700,
@@ -201,13 +201,13 @@ class EmptySiloCard extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       child: Material(
-        color: AuthTheme.surface,
+        color: GrainHeroColors.surface,
         elevation: 3,
-        shadowColor: AuthTheme.primaryGreen.withValues(alpha: 0.18),
+        shadowColor: GrainHeroColors.primary.withValues(alpha: 0.18),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(30),
           side: BorderSide(
-            color: AuthTheme.primaryGreen.withValues(alpha: 0.20),
+            color: GrainHeroColors.primary.withValues(alpha: 0.20),
           ),
         ),
         child: InkWell(
@@ -217,21 +217,13 @@ class EmptySiloCard extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 34),
             child: Column(
               children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: AuthTheme.primaryGreen.withValues(alpha: 0.10),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.storage_rounded, size: 38, color: AuthTheme.primaryGreen),
-                ),
+                const _LargeTonalIcon(icon: Icons.storage_rounded),
                 const SizedBox(height: 18),
                 const Text(
                   'No silos available',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    color: AuthTheme.greenOverlay,
+                    color: GrainHeroColors.dark,
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
                   ),
@@ -243,7 +235,7 @@ class EmptySiloCard extends StatelessWidget {
                     'Connect your hardware or manually add a silo to begin monitoring.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: AuthTheme.textPrimary,
+                      color: GrainHeroColors.bodyText,
                       fontSize: 14,
                       height: 1.5,
                     ),
@@ -258,122 +250,21 @@ class EmptySiloCard extends StatelessWidget {
   }
 }
 
-// ============================================================
-// ACTIVE ALERT
-// ============================================================
+class _LargeTonalIcon extends StatelessWidget {
+  const _LargeTonalIcon({required this.icon});
 
-class ActiveAlertCard extends StatelessWidget {
-  const ActiveAlertCard({
-    super.key, 
-    required this.title,
-    required this.description,
-    required this.onAcknowledge,
-  });
-
-  final String title;
-  final String description;
-  final VoidCallback onAcknowledge;
+  final IconData icon;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AuthTheme.surface,
-      elevation: 3,
-      shadowColor: AuthTheme.primaryGreen.withValues(alpha: 0.16),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(30),
-        side: BorderSide(
-          color: AuthTheme.primaryGreen.withValues(alpha: 0.20),
-        ),
+    return Container(
+      width: 80,
+      height: 80,
+      decoration: BoxDecoration(
+        color: GrainHeroColors.primary.withValues(alpha: 0.10),
+        shape: BoxShape.circle,
       ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          Positioned(
-            top: -42,
-            right: -42,
-            child: Container(
-              width: 130,
-              height: 130,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AuthTheme.primaryGreen.withValues(alpha: 0.10),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: AuthTheme.primaryGreen.withValues(alpha: 0.12),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.warning_rounded, color: AuthTheme.primaryGreen),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            title,
-                            style: const TextStyle(
-                              color: AuthTheme.primaryGreen,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.3,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            description,
-                            style: const TextStyle(
-                              color: AuthTheme.textPrimary,
-                              fontSize: 18,
-                              height: 1.35,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: onAcknowledge,
-                    style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(50),
-                      foregroundColor: AuthTheme.primaryGreen,
-                      side: BorderSide(
-                        color: AuthTheme.primaryGreen.withValues(alpha: 0.35),
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      textStyle: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.4,
-                      ),
-                    ),
-                    child: const Text('ACKNOWLEDGE'),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+      child: Icon(icon, size: 38, color: GrainHeroColors.primary),
     );
   }
 }
@@ -401,13 +292,13 @@ class BatchCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AuthTheme.surface,
+      color: GrainHeroColors.surface,
       elevation: 3,
-      shadowColor: AuthTheme.primaryGreen.withValues(alpha: 0.14),
+      shadowColor: GrainHeroColors.primary.withValues(alpha: 0.14),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(28),
         side: BorderSide(
-          color: AuthTheme.primaryGreen.withValues(alpha: 0.14),
+          color: GrainHeroColors.primary.withValues(alpha: 0.14),
         ),
       ),
       child: InkWell(
@@ -421,19 +312,19 @@ class BatchCard extends StatelessWidget {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: AuthTheme.primaryGreen.withValues(alpha: 0.10),
+                  color: GrainHeroColors.primary.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(18),
                 ),
                 child: const Icon(
                   Icons.inventory_2_rounded,
-                  color: AuthTheme.primaryGreen,
+                  color: GrainHeroColors.primary,
                 ),
               ),
               const SizedBox(width: 14),
               Container(
                 width: 1,
                 height: 36,
-                color: AuthTheme.greenOverlay.withValues(alpha: 0.15),
+                color: GrainHeroColors.dark.withValues(alpha: 0.15),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -443,7 +334,7 @@ class BatchCard extends StatelessWidget {
                     Text(
                       grainName,
                       style: const TextStyle(
-                        color: AuthTheme.greenOverlay,
+                        color: GrainHeroColors.dark,
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
                       ),
@@ -452,7 +343,7 @@ class BatchCard extends StatelessWidget {
                     Text(
                       '$quantity • $siloName',
                       style: const TextStyle(
-                        color: AuthTheme.textPrimary,
+                        color: GrainHeroColors.bodyText,
                         fontSize: 14,
                       ),
                     ),
@@ -466,13 +357,13 @@ class BatchCard extends StatelessWidget {
                   vertical: 7,
                 ),
                 decoration: BoxDecoration(
-                  color: AuthTheme.primaryGreen.withValues(alpha: 0.10),
+                  color: GrainHeroColors.primary.withValues(alpha: 0.10),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
                   riskLevel,
                   style: const TextStyle(
-                    color: AuthTheme.primaryGreen,
+                    color: GrainHeroColors.primary,
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
@@ -485,3 +376,124 @@ class BatchCard extends StatelessWidget {
     );
   }
 }
+
+// ============================================================
+// ACTIVE ALERT
+// ============================================================
+
+class ActiveAlertCard extends StatelessWidget {
+  const ActiveAlertCard({
+    super.key,
+    required this.title,
+    required this.description,
+    required this.onAcknowledge,
+  });
+
+  final String title;
+  final String description;
+  final VoidCallback onAcknowledge;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: GrainHeroColors.surface,
+      elevation: 3,
+      shadowColor: GrainHeroColors.primary.withValues(alpha: 0.16),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(30),
+        side: BorderSide(
+          color: GrainHeroColors.primary.withValues(alpha: 0.20),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        children: [
+          Positioned(
+            top: -42,
+            right: -42,
+            child: Container(
+              width: 130,
+              height: 130,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: GrainHeroColors.primary.withValues(alpha: 0.10),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: GrainHeroColors.primary.withValues(alpha: 0.12),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.warning_rounded, color: GrainHeroColors.primary),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            style: const TextStyle(
+                              color: GrainHeroColors.primary,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            description,
+                            style: const TextStyle(
+                              color: GrainHeroColors.bodyText,
+                              fontSize: 18,
+                              height: 1.35,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: onAcknowledge,
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(50),
+                      foregroundColor: GrainHeroColors.primary,
+                      side: BorderSide(
+                        color: GrainHeroColors.primary.withValues(alpha: 0.35),
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      textStyle: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.4,
+                      ),
+                    ),
+                    child: const Text('ACKNOWLEDGE'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

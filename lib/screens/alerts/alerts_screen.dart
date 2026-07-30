@@ -6,9 +6,9 @@ import '../../services/auth_service.dart';
 import '../../models/alert_model.dart';
 import '../../config/app_theme.dart';
 
-import '../../widgets/error_widget.dart';
-import '../../widgets/empty_state_widget.dart';
-import '../../widgets/status_badge.dart';
+import '../../widgets/common/error_widget.dart';
+import '../../widgets/common/empty_state_widget.dart';
+import '../../widgets/common/status_badge.dart';
 
 class AlertsScreen extends StatefulWidget {
   const AlertsScreen({super.key});

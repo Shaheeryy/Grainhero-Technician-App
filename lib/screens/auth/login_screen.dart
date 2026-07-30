@@ -10,8 +10,8 @@ import 'package:grainhero_technician_app/screens/auth/forgot_password_screen.dar
 import 'package:grainhero_technician_app/screens/auth/sign_up_screen.dart';
 import 'package:grainhero_technician_app/utils/secure_storage.dart';
 import 'package:grainhero_technician_app/services/notification_service.dart';
-import 'package:grainhero_technician_app/widgets/auth_button.dart';
-import 'package:grainhero_technician_app/widgets/auth_text_field.dart';
+import 'package:grainhero_technician_app/widgets/common/auth_button.dart';
+import 'package:grainhero_technician_app/widgets/common/auth_text_field.dart';
 
 class LoginScreen extends StatefulWidget {
   final String? email;
@@ -238,7 +238,9 @@ class _LoginScreenState extends State<LoginScreen> {
           resizeToAvoidBottomInset: true,
           body: Stack(
             children: [
-              // Background Image with green overlay
+              // =====================================================
+              // BACKGROUND
+              // =====================================================
               Container(
                 width: size.width,
                 height: size.height,
@@ -271,7 +273,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                     const SizedBox(height: 40),
-                    // Logo and Title
+                    // =====================================================
+                    // AUTH LOGO / HEADER
+                    // =====================================================
                     Center(
                       child: Column(
                         children: [
@@ -309,7 +313,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 40),
 
-                    // Bottom Sheet Card
+                    // =====================================================
+                    // BOTTOM SHEET AUTH FORM
+                    // =====================================================
                     Expanded(
                       child: Container(
                         width: double.infinity,

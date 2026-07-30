@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import '../../config/app_theme.dart';
 import '../../models/sensor_model.dart';
 import '../../services/sensor_service.dart';
-import '../../widgets/error_widget.dart';
-import '../../widgets/empty_state_widget.dart';
-import '../../widgets/status_badge.dart';
+import '../../widgets/common/error_widget.dart';
+import '../../widgets/common/empty_state_widget.dart';
+import '../../widgets/common/status_badge.dart';
 import 'sensor_detail_screen.dart';
 
 class SensorsScreen extends StatefulWidget {
