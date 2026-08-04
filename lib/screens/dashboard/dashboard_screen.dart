@@ -1,10 +1,8 @@
-import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider/provider.dart';
-import 'package:grainhero_technician_app/config/api_config.dart';
 import 'package:grainhero_technician_app/config/app_theme.dart';
-import 'package:grainhero_technician_app/utils/secure_storage.dart';
 import 'package:grainhero_technician_app/services/user_service.dart';
 import 'package:grainhero_technician_app/services/auth_service.dart';
 import 'package:grainhero_technician_app/models/user_model.dart';
@@ -12,11 +10,11 @@ import 'package:grainhero_technician_app/widgets/error_widget.dart';
 import 'package:grainhero_technician_app/services/grain_batch_service.dart';
 import 'package:grainhero_technician_app/services/silo_service.dart';
 import 'package:grainhero_technician_app/models/silo_model.dart';
+import 'package:grainhero_technician_app/services/sensor_service.dart';
 import '../qr_scanner/qr_scanner_screen.dart';
 import '../alerts/alerts_screen.dart';
 import '../grain_batches/grain_batch_detail_screen.dart';
 import 'package:grainhero_technician_app/services/alert_service.dart';
-import 'package:grainhero_technician_app/widgets/empty_state_widget.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -48,6 +46,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // I will add import in next step. For now adds variable.
   bool loading = true;
   String? error;
+  Timer? _refreshTimer;
   final _userService = UserService();
   final _grainBatchService = GrainBatchService();
   final _alertService = AlertService();
@@ -58,16 +57,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fetchDashboard();
     });
+    // Auto-refresh every 30 seconds to pick up latest sensor/alert changes
+    _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted && !loading) _fetchDashboard();
+    });
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _fetchDashboard() async {
     try {
-      final token = await SecureStorage.getToken();
+      final session = Supabase.instance.client.auth.currentSession;
 
-      if (token == null || token.isEmpty) {
+      if (session == null) {
         setState(() {
           loading = false;
-          error = 'No authentication token found. Please login again.';
+          error = 'No active session found. Please login again.';
         });
         return;
       }
@@ -114,46 +123,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
         debugPrint('Failed to fetch real silo count: $e');
       }
 
-      final dashboardResponse = await http.get(
-        Uri.parse(ApiConfig.technicianDashboard),
-        headers: ApiConfig.getHeaders(token: token),
-      );
+      // Instead of HTTP, call the modified SensorService method for now (G5: No aggregate dashboard yet)
+      final responseData = await SensorService().fetchDashboard();
 
       if (!mounted) return;
 
-      if (dashboardResponse.statusCode == 200 || dashboardResponse.statusCode == 201) {
-        try {
-          final responseData = jsonDecode(dashboardResponse.body);
-          debugPrint('Dashboard response keys: ${responseData.keys.toList()}');
-          if (responseData['stats'] != null) {
-            debugPrint('Dashboard stats: ${responseData['stats']}');
-          }
-          setState(() {
-            dashboardData = responseData;
-            // Use directly fetched counts (bypasses unreliable stat title matching)
-            if (realSiloCount != null) _realSiloCount = realSiloCount!;
-            if (realBatchCount != null) _realBatchCount = realBatchCount!;
+      try {
+        setState(() {
+          dashboardData = responseData;
+          // Use directly fetched counts
+          if (realSiloCount != null) _realSiloCount = realSiloCount;
+          if (realBatchCount != null) _realBatchCount = realBatchCount;
 
-            userProfile = user;
-            loading = false;
-            error = null;
-          });
-        } catch (e) {
-          setState(() {
-            loading = false;
-            error = 'Error parsing dashboard data: $e';
-          });
-        }
-      } else if (dashboardResponse.statusCode == 401) {
-        setState(() {
+          userProfile = user;
           loading = false;
-          error = 'Session expired. Please login again.';
+          error = null;
         });
-        await SecureStorage.clearAll();
-      } else {
+      } catch (e) {
         setState(() {
           loading = false;
-          error = 'Failed to load dashboard (Status: ${dashboardResponse.statusCode})';
+          error = 'Error parsing dashboard data: $e';
         });
       }
     } catch (e) {
@@ -206,34 +195,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   // ---------- HELPERS ----------
-  void _updateStat(String title, int value) {
-    if (dashboardData == null || dashboardData!['stats'] == null) return;
-    final stats = dashboardData!['stats'] as List<dynamic>;
-    for (var i = 0; i < stats.length; i++) {
-      if ((stats[i]['title'] ?? '').toString().toLowerCase().contains(title.toLowerCase())) {
-        stats[i]['value'] = value;
-        return;
-      }
-    }
-    // If not found, add it (optional, but good for robustness)
-    // stats.add({'title': title, 'value': value, 'icon': 'default', 'change': 0});
-  }
-
   String get _techName {
     final authService = Provider.of<AuthService>(context, listen: false);
     return userProfile?.name ?? authService.user?.name ?? 'Technician';
-  }
-
-  int _getStatValue(String key) {
-    if (dashboardData == null || dashboardData!['stats'] == null) return 0;
-    final stats = dashboardData!['stats'] as List<dynamic>;
-    for (final s in stats) {
-      if ((s['title'] ?? '').toString().toLowerCase().contains(key.toLowerCase())) {
-        // Handle both "Silos" and "Active Batches" dynamically updated values
-        return (s['value'] ?? 0) is int ? s['value'] : (s['value'] as num).toInt();
-      }
-    }
-    return 0;
   }
 
   List<Map<String, dynamic>> get _sensorSnapshots {
@@ -466,7 +430,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: color.withOpacity(0.15),
+                color: color.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(icon, size: 18, color: color),
@@ -541,9 +505,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildSiloEnvironmentCard(SiloModel silo) {
-    final temp = silo.temperature ?? 0;
-    final hum = silo.humidity ?? 0;
-    final tvoc = silo.tvoc ?? 0;
+    final temp = silo.temperature;
+    final hum = silo.humidity;
+    final tvoc = silo.tvoc;
 
     return Container(
       width: 280, // Fixed width for each card
@@ -555,7 +519,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         border: Border.all(color: AppTheme.borderColor, width: 0.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -581,8 +545,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: silo.status.toLowerCase() == 'active'
-                      ? AppTheme.successColor.withOpacity(0.15)
-                      : AppTheme.textSecondary.withOpacity(0.15),
+                      ? AppTheme.successColor.withValues(alpha: 0.15)
+                      : AppTheme.textSecondary.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -629,75 +593,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildMetricTile({
-    required IconData icon,
-    required String value,
-    required String unit,
-    required String label,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(12), // Reduced padding from 16
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.borderColor, width: 0.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 16, color: color),
-              const SizedBox(width: 4), // Reduced spacing
-              Expanded(
-                child: Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 10, // Reduced font size
-                    color: AppTheme.textSecondary,
-                    height: 1.1,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 24, // Kept large but wrapped in FittedBox
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-                ),
-                const SizedBox(width: 2),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 3),
-                  child: Text(
-                    unit,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: color.withOpacity(0.7),
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
   // ---------- RECENT BATCHES ----------
   Widget _buildRecentBatchesSection() {
@@ -740,7 +635,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withOpacity(0.12),
+                color: AppTheme.primaryColor.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: const Icon(
@@ -776,9 +671,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: riskColor.withOpacity(0.12),
+                color: riskColor.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: riskColor.withOpacity(0.3), width: 1),
+                border: Border.all(color: riskColor.withValues(alpha: 0.3), width: 1),
               ),
               child: Text(
                 risk.toUpperCase(),
@@ -810,7 +705,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: AppTheme.errorColor.withOpacity(0.12),
+                color: AppTheme.errorColor.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
@@ -843,7 +738,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       decoration: BoxDecoration(
         color: AppTheme.cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withOpacity(0.3), width: 1),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -853,7 +748,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.12),
+                  color: color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(Icons.warning_amber_rounded, color: color, size: 20),
@@ -905,7 +800,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 }
               },
               style: OutlinedButton.styleFrom(
-                side: BorderSide(color: AppTheme.primaryColor.withOpacity(0.5)),
+                side: BorderSide(color: AppTheme.primaryColor.withValues(alpha: 0.5)),
                 foregroundColor: AppTheme.primaryColor,
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(
@@ -957,7 +852,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
@@ -1030,7 +925,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.12),
+                  color: color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(icon, color: color, size: 22),
@@ -1168,7 +1063,7 @@ class GrainBatchSearchDelegate extends SearchDelegate<String> {
                 leading: Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withOpacity(0.12),
+                    color: AppTheme.primaryColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(Icons.inventory_2_rounded,

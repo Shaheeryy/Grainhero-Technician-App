@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 
 class ApiConfig {
   // ============================================
@@ -13,7 +14,7 @@ class ApiConfig {
   static const String deployedBaseUrl = 'https://grainhero.onrender.com';
 
   /// Local development IP (only used when useDeployedBackend = false)
-  static const String? physicalDeviceIp = '10.15.82.85';
+  static const String? physicalDeviceIp = '10.10.10.150';
 
   // ============================================
   // BASE URLS (IMPORTANT: Auth uses NO /api prefix!)
@@ -287,20 +288,20 @@ class ApiConfig {
 
   /// Print current API configuration (useful for debugging)
   static void printConfig() {
-    print('📱 API Configuration:');
-    print(
+    debugPrint('📱 API Configuration:');
+    debugPrint(
       '   Platform: ${Platform.isAndroid
           ? "Android"
           : Platform.isIOS
           ? "iOS"
           : "Other"}',
     );
-    print(
+    debugPrint(
       '   Physical Device IP: ${physicalDeviceIp ?? "Not set (using default)"}',
     );
-    print('   Auth Base URL: $authBaseUrl');
-    print('   API Base URL: $apiBaseUrl');
-    print('   Login URL: $login');
-    print('');
+    debugPrint('   Auth Base URL: $authBaseUrl');
+    debugPrint('   API Base URL: $apiBaseUrl');
+    debugPrint('   Login URL: $login');
+    debugPrint('');
   }
 }

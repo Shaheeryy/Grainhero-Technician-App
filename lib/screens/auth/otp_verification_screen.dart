@@ -9,9 +9,16 @@ import '../../config/app_theme.dart';
 import '../main/main_screen.dart';
 
 class OtpVerificationScreen extends StatefulWidget {
-  final String phone;
+  final String email;
+  final Future<bool> Function(String otp) onVerify;
+  final Future<bool> Function() onResend;
 
-  const OtpVerificationScreen({super.key, required this.phone});
+  const OtpVerificationScreen({
+    super.key,
+    required this.email,
+    required this.onVerify,
+    required this.onResend,
+  });
 
   @override
   State<OtpVerificationScreen> createState() => _OtpVerificationScreenState();
@@ -38,6 +45,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
   void _startTimer() {
     _resendTimer = 60;
+    _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_resendTimer > 0) {
         setState(() => _resendTimer--);
@@ -47,14 +55,11 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     });
   }
 
-  Future<void> _verifyOtp() async {
+  Future<void> _verify() async {
     if (!_formKey.currentState!.validate()) return;
 
     final authService = Provider.of<AuthService>(context, listen: false);
-    final success = await authService.verifyOtp(
-      widget.phone,
-      _otpController.text,
-    );
+    final success = await widget.onVerify(_otpController.text);
 
     if (!mounted) return;
 
@@ -66,16 +71,18 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(authService.error ?? 'Invalid OTP'),
+          content: Text(authService.error ?? 'Invalid or expired code'),
           backgroundColor: AppTheme.errorColor,
         ),
       );
     }
   }
 
-  Future<void> _resendOtp() async {
+  Future<void> _resend() async {
+    if (_resendTimer > 0) return;
+
     final authService = Provider.of<AuthService>(context, listen: false);
-    final success = await authService.sendOtp(widget.phone);
+    final success = await widget.onResend();
 
     if (!mounted) return;
 
@@ -83,8 +90,18 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       _startTimer();
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('OTP sent successfully'),
+          content: Text('Code sent successfully'),
           backgroundColor: AppTheme.successColor,
+        ),
+      );
+    } else {
+      // Supabase rate-limits still count as "sent recently" — restart the
+      // cooldown so the button doesn't re-enable prematurely.
+      _startTimer();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(authService.error ?? 'Could not resend code'),
+          backgroundColor: AppTheme.errorColor,
         ),
       );
     }
@@ -110,14 +127,14 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                 const SizedBox(height: 24),
 
                 const Text(
-                  'Verify OTP',
+                  'Enter Code',
                   style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                 ),
 
                 const SizedBox(height: 8),
 
                 Text(
-                  'Enter the code sent to ${widget.phone}',
+                  'Enter the code sent to ${widget.email}',
                   style: const TextStyle(fontSize: 16, color: Colors.black54),
                 ),
 
@@ -150,7 +167,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
                   builder: (context, authService, _) {
                     return CustomButton(
                       text: 'Verify',
-                      onPressed: _verifyOtp,
+                      onPressed: _verify,
                       isLoading: authService.isLoading,
                     );
                   },
@@ -158,20 +175,20 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
 
                 const SizedBox(height: 24),
 
-                // Resend OTP
+                // Resend Code
                 Center(
                   child: _resendTimer > 0
                       ? Text(
-                          'Resend OTP in $_resendTimer seconds',
+                          'Resend code in $_resendTimer seconds',
                           style: TextStyle(
                             fontSize: 14,
                             color: Colors.grey[600],
                           ),
                         )
                       : TextButton(
-                          onPressed: _resendOtp,
+                          onPressed: _resend,
                           child: const Text(
-                            'Resend OTP',
+                            'Resend Code',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w600,

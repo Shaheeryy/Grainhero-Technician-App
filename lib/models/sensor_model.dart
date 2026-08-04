@@ -58,21 +58,21 @@ class SensorDevice {
   });
 
   factory SensorDevice.fromJson(Map<String, dynamic> json) {
-    // Handle populated silo_id object
+    // Handle Supabase PostgREST joined silo object
     String? siloId;
     String? siloName;
     String? siloCode;
-    if (json['silo_id'] is Map) {
-      siloId = json['silo_id']['_id']?.toString();
-      siloName = json['silo_id']['name']?.toString();
-      siloCode = json['silo_id']['silo_id']?.toString();
+    if (json['silos'] is Map) {
+      siloId = json['silos']['id']?.toString();
+      siloName = json['silos']['name']?.toString();
+      siloCode = json['silos']['silo_id']?.toString();
     } else {
       siloId = json['silo_id']?.toString();
       siloName = json['silo_name']?.toString();
     }
 
     return SensorDevice(
-      id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
+      id: json['id']?.toString() ?? '',
       deviceId: json['device_id']?.toString() ?? '',
       deviceName: json['device_name']?.toString() ?? json['name']?.toString() ?? 'Unknown Sensor',
       deviceType: json['device_type']?.toString() ?? 'sensor',
@@ -142,7 +142,7 @@ class SensorDevice {
   static List<SensorReading> _parseReadings(dynamic value) {
     if (value is List) {
       return value
-          .where((r) => r is Map)
+          .whereType<Map>()
           .map((r) => SensorReading.fromJson(Map<String, dynamic>.from(r)))
           .toList();
     }
@@ -192,16 +192,18 @@ class SensorReading {
     return SensorReading(
       timestamp: json['timestamp'] != null
           ? DateTime.tryParse(json['timestamp'].toString())
-          : null,
-      temperature: _extractNestedValue(json['temperature']),
+          : (json['reading_timestamp'] != null 
+              ? DateTime.tryParse(json['reading_timestamp'].toString())
+              : null),
+      temperature: _extractNestedValue(json['temperature'] ?? json['temperature_value']),
       temperatureUnit: _extractNestedUnit(json['temperature'], 'celsius'),
-      humidity: _extractNestedValue(json['humidity']),
+      humidity: _extractNestedValue(json['humidity'] ?? json['humidity_value']),
       humidityUnit: _extractNestedUnit(json['humidity'], 'percent'),
-      voc: _extractNestedValue(json['voc']),
+      voc: _extractNestedValue(json['voc'] ?? json['voc_value']),
       vocUnit: _extractNestedUnit(json['voc'], 'ppb'),
-      moisture: _extractNestedValue(json['moisture']),
+      moisture: _extractNestedValue(json['moisture'] ?? json['moisture_value']),
       moistureUnit: _extractNestedUnit(json['moisture'], 'percent'),
-      co2: _extractNestedValue(json['co2']),
+      co2: _extractNestedValue(json['co2'] ?? json['co2_value']),
       co2Unit: _extractNestedUnit(json['co2'], 'ppm'),
       ambient: json['ambient'] is Map
           ? AmbientData.fromJson(Map<String, dynamic>.from(json['ambient']))
@@ -214,10 +216,10 @@ class SensorReading {
           : null,
       batteryLevel: json['device_metrics'] is Map
           ? (json['device_metrics']['battery_level'] as num?)?.toInt()
-          : null,
+          : (json['battery_level'] as num?)?.toInt(),
       signalStrength: json['device_metrics'] is Map
           ? (json['device_metrics']['signal_strength'] as num?)?.toInt()
-          : null,
+          : (json['signal_strength'] as num?)?.toInt(),
     );
   }
 

@@ -33,17 +33,17 @@ class AlertModel {
 
   factory AlertModel.fromJson(Map<String, dynamic> json) {
     return AlertModel(
-      id: json['_id'] ?? json['id'] ?? '',
+      id: json['id']?.toString() ?? '',
       title: json['title'] ?? json['message'] ?? '',
       message: json['message'] ?? '',
       description: json['description'],
       category: json['category'] ?? 'environmental',
-      severity: json['severity'] ?? 'low',
+      severity: json['severity'] ?? json['priority'] ?? 'low',
       status: json['status'] ?? 'active',
-      location: json['location'] ?? json['silo_id']?['name'],
+      location: json['location'] ?? json['silos']?['name'] ?? json['silo_id']?['name'],
       siloId: json['silo_id'] is String
           ? json['silo_id']
-          : json['silo_id']?['_id'] ?? json['silo_id']?['id'],
+          : json['silo_id']?['id'] ?? json['silo_id']?['_id'],
       batchId: json['batch_id'],
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])

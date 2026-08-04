@@ -18,6 +18,14 @@ class SecureStorage {
     return await _storage.read(key: _keyToken);
   }
 
+  // Purge legacy token
+  static Future<void> purgeLegacyToken() async {
+    final hasToken = await _storage.containsKey(key: _keyToken);
+    if (hasToken) {
+      await clearAll();
+    }
+  }
+
   // Save user data
   static Future<void> saveUserData({
     required String userId,

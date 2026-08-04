@@ -4,9 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:http/http.dart' as http;
-import '../config/api_config.dart';
-import '../utils/secure_storage.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 // ─── Background message handler (must be top-level function) ────────────────
 @pragma('vm:entry-point')
@@ -23,6 +21,7 @@ class NotificationService {
 
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
+  final SupabaseClient _supabase = Supabase.instance.client;
 
   // Callback for when a notification is tapped — set from main.dart
   Function(Map<String, dynamic>)? onNotificationTap;
@@ -95,7 +94,7 @@ class NotificationService {
     );
 
     await _localNotifications.initialize(
-      const InitializationSettings(android: androidSettings, iOS: iosSettings),
+      settings: const InitializationSettings(android: androidSettings, iOS: iosSettings),
       onDidReceiveNotificationResponse: (details) {
         // Tapped on local notification
         if (details.payload != null) {
@@ -116,10 +115,10 @@ class NotificationService {
     debugPrint('🔔 [FCM Foreground] ${notification.title}: ${notification.body}');
 
     await _localNotifications.show(
-      message.hashCode,
-      notification.title,
-      notification.body,
-      NotificationDetails(
+      id: message.hashCode,
+      title: notification.title,
+      body: notification.body,
+      notificationDetails: NotificationDetails(
         android: AndroidNotificationDetails(
           _channel.id,
           _channel.name,
@@ -170,22 +169,21 @@ class NotificationService {
 
   Future<void> _registerTokenWithBackend(String token) async {
     try {
-      final authToken = await SecureStorage.getToken();
-      if (authToken == null) {
+      final user = _supabase.auth.currentUser;
+      if (user == null) {
         debugPrint('🔔 [FCM] Not logged in, skipping token registration.');
         return;
       }
 
-      final response = await http.post(
-        Uri.parse(ApiConfig.registerFcmToken),
-        headers: ApiConfig.getHeaders(token: authToken),
-        body: jsonEncode({'fcm_token': token}),
-      ).timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
+      // Supabase profiles update for fcm_tokens array
+      // First fetch existing tokens
+      final data = await _supabase.from('profiles').select('fcm_tokens').eq('id', user.id).single();
+      List<dynamic> tokens = data['fcm_tokens'] ?? [];
+      
+      if (!tokens.contains(token)) {
+        tokens.add(token);
+        await _supabase.from('profiles').update({'fcm_tokens': tokens}).eq('id', user.id);
         debugPrint('🔔 [FCM] Token registered with backend ✅');
-      } else {
-        debugPrint('🔔 [FCM] Backend token registration failed: ${response.statusCode}');
       }
     } catch (e) {
       debugPrint('🔔 [FCM] Backend registration error: $e');
@@ -198,14 +196,16 @@ class NotificationService {
       final token = await _fcm.getToken();
       if (token == null) return;
 
-      final authToken = await SecureStorage.getToken();
-      if (authToken == null) return;
+      final user = _supabase.auth.currentUser;
+      if (user == null) return;
 
-      await http.delete(
-        Uri.parse(ApiConfig.registerFcmToken),
-        headers: ApiConfig.getHeaders(token: authToken),
-        body: jsonEncode({'fcm_token': token}),
-      ).timeout(const Duration(seconds: 10));
+      final data = await _supabase.from('profiles').select('fcm_tokens').eq('id', user.id).single();
+      List<dynamic> tokens = data['fcm_tokens'] ?? [];
+      
+      if (tokens.contains(token)) {
+        tokens.remove(token);
+        await _supabase.from('profiles').update({'fcm_tokens': tokens}).eq('id', user.id);
+      }
 
       await _fcm.deleteToken();
       debugPrint('🔔 [FCM] Token unregistered on logout ✅');
