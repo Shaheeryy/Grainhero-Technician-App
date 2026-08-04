@@ -1,0 +1,22 @@
+# Normalize line endings to LF for all text files, regardless of each
+# developer's local core.autocrlf setting. This is what stops Flutter's
+# regenerated files (generated_plugins.cmake, GeneratedPluginRegistrant.swift,
+# etc.) from showing as locally modified after every `flutter pub get`/build.
+* text=auto eol=lf
+
+# Windows-native scripts should keep CRLF for double-click execution.
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Never text-normalize binary assets.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.ttf binary
+*.otf binary
+*.jks binary
+*.keystore binary
+*.p12 binary
