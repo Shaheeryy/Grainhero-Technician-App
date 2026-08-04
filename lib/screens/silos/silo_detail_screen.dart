@@ -1,14 +1,9 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import '../../config/api_config.dart';
 import '../../config/app_theme.dart';
 import '../../models/silo_model.dart';
 import '../../models/grain_batch_model.dart';
 import '../../services/grain_batch_service.dart';
-import '../../utils/secure_storage.dart';
 import '../../widgets/custom_card.dart';
-import '../../widgets/kpi_card.dart'; // Assuming this exists or will use CustomCard
 import '../actuators/actuators_screen.dart';
 import '../sensors/sensors_screen.dart';
 import '../grain_batches/grain_batch_detail_screen.dart';
@@ -35,16 +30,9 @@ class _SiloDetailScreenState extends State<SiloDetailScreen> {
 
   Future<void> _loadBatches() async {
     try {
-      // Try with silo.id (MongoDB _id) first, then fallback to silo.name (silo_id)
+      // Query batches for this silo using its UUID
       var result = await _batchService.getGrainBatches(siloId: widget.silo.id, status: 'stored');
       var batches = (result['batches'] as List).cast<GrainBatch>();
-      
-      // If no results with _id, try with name (silo_id like SILO-001)
-      if (batches.isEmpty && widget.silo.name != widget.silo.id) {
-        debugPrint('No batches found with silo._id, trying silo.name: ${widget.silo.name}');
-        result = await _batchService.getGrainBatches(siloId: widget.silo.name, status: 'stored');
-        batches = (result['batches'] as List).cast<GrainBatch>();
-      }
 
       debugPrint('DEBUG: Silo batches statuses: ${batches.map((b) => b.status).toList()}');
       
@@ -106,7 +94,7 @@ class _SiloDetailScreenState extends State<SiloDetailScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.1),
+                  color: statusColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
@@ -258,7 +246,7 @@ class _SiloDetailScreenState extends State<SiloDetailScreen> {
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: AppTheme.primaryColor.withOpacity(0.1),
+            color: AppTheme.primaryColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: const Icon(Icons.inventory_2_outlined, color: AppTheme.primaryColor),
@@ -277,80 +265,4 @@ class _SiloDetailScreenState extends State<SiloDetailScreen> {
     );
   }
 
-  void _showMaintenanceDialog() {
-    final controller = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.surfaceColor,
-        title: const Text('Log Silo Maintenance', style: TextStyle(color: AppTheme.textPrimary)),
-        content: TextField(
-          controller: controller,
-          maxLines: 4,
-          style: const TextStyle(color: AppTheme.textPrimary),
-          decoration: InputDecoration(
-            hintText: 'Describe the maintenance performed...',
-            hintStyle: const TextStyle(color: AppTheme.textHint),
-            filled: true,
-            fillColor: AppTheme.backgroundColor,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-              borderSide: BorderSide.none,
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final notes = controller.text.trim();
-              if (notes.isEmpty) return;
-              Navigator.pop(ctx);
-              try {
-                final token = await SecureStorage.getToken();
-                if (token == null) throw Exception('Not authenticated');
-
-                final response = await http.post(
-                  Uri.parse(ApiConfig.siloMaintenance(widget.silo.id)),
-                  headers: ApiConfig.getHeaders(token: token),
-                  body: jsonEncode({
-                    'notes': notes,
-                  }),
-                );
-
-                if (!mounted) return;
-
-                if (response.statusCode == 200 || response.statusCode == 201) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Maintenance logged successfully'),
-                      backgroundColor: AppTheme.successColor,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                } else {
-                  final error = jsonDecode(response.body);
-                  throw Exception(error['error'] ?? 'Failed to log maintenance');
-                }
-              } catch (e) {
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Failed: ${e.toString().replaceAll('Exception: ', '')}'),
-                    backgroundColor: AppTheme.errorColor,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
-            child: const Text('Submit', style: TextStyle(color: Colors.black)),
-          ),
-        ],
-      ),
-    );
-  }
 }

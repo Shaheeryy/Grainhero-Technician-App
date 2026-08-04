@@ -1,26 +1,15 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
-import 'package:grainhero_technician_app/config/api_config.dart';
+import 'package:provider/provider.dart';
 import 'package:grainhero_technician_app/config/app_theme.dart';
 import 'package:grainhero_technician_app/config/auth_theme.dart';
-import 'package:grainhero_technician_app/screens/main/main_screen.dart';
-import 'package:grainhero_technician_app/screens/auth/forgot_password_screen.dart';
-import 'package:grainhero_technician_app/screens/auth/sign_up_screen.dart';
-import 'package:grainhero_technician_app/utils/secure_storage.dart';
-import 'package:grainhero_technician_app/services/notification_service.dart';
+import 'package:grainhero_technician_app/screens/auth/otp_verification_screen.dart';
+import 'package:grainhero_technician_app/screens/auth/accept_invite_screen.dart';
+import 'package:grainhero_technician_app/services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   final String? email;
-  final String? password;
-  const LoginScreen({super.key, this.email, this.password});
-
-  static Route route({String? email, String? password}) {
-    return MaterialPageRoute(
-      builder: (_) => LoginScreen(email: email, password: password),
-    );
-  }
+  const LoginScreen({super.key, this.email});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -29,20 +18,15 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   late final emailController = TextEditingController(text: widget.email ?? "");
-  late final passwordController = TextEditingController(
-    text: widget.password ?? "",
-  );
-  bool _obscurePassword = true;
   bool _isLoading = false;
 
   @override
   void dispose() {
     emailController.dispose();
-    passwordController.dispose();
     super.dispose();
   }
 
-  Future<void> _login() async {
+  Future<void> _sendCode() async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -51,148 +35,28 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
     });
 
-    try {
-      final body = jsonEncode({
-        'email': emailController.text.trim(),
-        'password': passwordController.text,
-      });
+    final authService = Provider.of<AuthService>(context, listen: false);
+    final email = emailController.text.trim();
+    final success = await authService.sendLoginOtp(email);
 
-      final loginUrl = ApiConfig.login;
-      debugPrint('🔐 Attempting login to: $loginUrl');
-      
-      final response = await http
-          .post(
-            Uri.parse(loginUrl),
-            headers: ApiConfig.getHeaders(),
-            body: body,
-          )
-          .timeout(
-            const Duration(seconds: 15),
-            onTimeout: () {
-              debugPrint('⏱️ Login request timed out after 15 seconds');
-              throw Exception(
-                'Connection timeout. Please check your internet connection and try again.',
-              );
-            },
-          );
-      
-      debugPrint('✅ Login response received: Status ${response.statusCode}');
+    if (!mounted) return;
 
-      if (!mounted) return;
+    setState(() {
+      _isLoading = false;
+    });
 
-      final contentType = response.headers['content-type'] ?? '';
-      if (contentType.contains('text/html') ||
-          response.body.trim().startsWith('<!DOCTYPE')) {
-        _showError('Backend error: Received HTML instead of JSON. Check if backend is running.');
-        return;
-      }
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        try {
-          final data = jsonDecode(response.body);
-
-          String? token;
-          if (data['token'] != null) {
-            token = data['token'];
-          } else if (data['accessToken'] != null) {
-            token = data['accessToken'];
-          } else if (data['user'] != null && data['user']['token'] != null) {
-            token = data['user']['token'];
-          }
-
-          if (token != null && token.isNotEmpty) {
-            await SecureStorage.saveToken(token);
-          } else {
-            debugPrint('Warning: No token found in login response');
-          }
-
-          Map<String, dynamic>? userData;
-          if (data['user'] != null) {
-            userData = data['user'] is Map
-                ? Map<String, dynamic>.from(data['user'])
-                : null;
-          } else if (data['technician'] != null) {
-            userData = data['technician'] is Map
-                ? Map<String, dynamic>.from(data['technician'])
-                : null;
-          } else {
-            userData = data;
-          }
-
-          if (userData != null) {
-            await SecureStorage.saveUserData(
-              userId:
-                  userData['id']?.toString() ??
-                  userData['_id']?.toString() ??
-                  '',
-              userName:
-                  userData['name']?.toString() ??
-                  userData['fullName']?.toString() ??
-                  '',
-              userPhone:
-                  userData['phone']?.toString() ??
-                  userData['phoneNumber']?.toString() ??
-                  '',
-            );
-          }
-
-          if (!mounted) return;
-          
-          debugPrint('✅ Login successful, navigating to dashboard...');
-
-          NotificationService().registerToken().catchError((e) {
-            debugPrint('FCM token registration after login: $e');
-          });
-          
-          setState(() {
-            _isLoading = false;
-          });
-
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => const MainScreen()),
-          );
-          return;
-        } catch (e) {
-          if (!mounted) return;
-          setState(() {
-            _isLoading = false;
-          });
-          _showError('Error parsing response: $e');
-          return;
-        }
-      } else {
-        setState(() {
-          _isLoading = false;
-        });
-        try {
-          final errorData = jsonDecode(response.body);
-          if (!mounted) return;
-          _showError(errorData['message'] ?? 'Login failed');
-        } catch (e) {
-          if (!mounted) return;
-          _showError('Login failed (Status: ${response.statusCode})');
-        }
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-      });
-      
-      String errorMessage = 'Connection error';
-      if (e.toString().contains('timeout') || e.toString().contains('TimeoutException')) {
-        errorMessage = 'Request timed out. Please check your connection.';
-      } else if (e.toString().contains('Failed host lookup') ||
-          e.toString().contains('SocketException')) {
-        errorMessage = 'Cannot connect to server. Check your connection.';
-      } else if (e.toString().contains('FormatException')) {
-        errorMessage = 'Backend returned invalid data.';
-      } else {
-        errorMessage = 'Error: ${e.toString()}';
-      }
-      
-      _showError(errorMessage);
+    if (success) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => OtpVerificationScreen(
+            email: email,
+            onVerify: (otp) => authService.verifyLoginOtp(email, otp),
+            onResend: () => authService.sendLoginOtp(email),
+          ),
+        ),
+      );
+    } else {
+      _showError(authService.error ?? 'Could not send code');
     }
   }
 
@@ -207,12 +71,6 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
         duration: const Duration(seconds: 4),
       ),
-    );
-  }
-
-  void _forgotPassword() {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
     );
   }
 
@@ -250,7 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
               Container(
                 width: size.width,
                 height: size.height,
-                color: AuthTheme.greenOverlay.withOpacity(0.85),
+                color: AuthTheme.greenOverlay.withValues(alpha: 0.85),
               ),
 
               // Content
@@ -327,6 +185,15 @@ class _LoginScreenState extends State<LoginScreen> {
                                   ),
                                   textAlign: TextAlign.center,
                                 ),
+                                const SizedBox(height: 8),
+                                const Text(
+                                  "Enter your email and we'll send you a login code.",
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: AuthTheme.textSecondary,
+                                  ),
+                                  textAlign: TextAlign.center,
+                                ),
                                 const SizedBox(height: 24),
 
                                 // Email Field
@@ -345,62 +212,13 @@ class _LoginScreenState extends State<LoginScreen> {
                                     return null;
                                   },
                                 ),
-                                const SizedBox(height: 16),
-
-                                // Password Field
-                                _buildOutlinedTextField(
-                                  controller: passwordController,
-                                  icon: Icons.lock_outline,
-                                  hintText: 'Password',
-                                  obscureText: _obscurePassword,
-                                  suffixIcon: IconButton(
-                                    icon: Icon(
-                                      _obscurePassword
-                                          ? Icons.visibility_off_outlined
-                                          : Icons.visibility_outlined,
-                                      color: AuthTheme.textSecondary,
-                                      size: 20,
-                                    ),
-                                    onPressed: () {
-                                      setState(() {
-                                        _obscurePassword = !_obscurePassword;
-                                      });
-                                    },
-                                  ),
-                                  validator: (value) {
-                                    if (value == null || value.isEmpty) {
-                                      return 'Enter password';
-                                    }
-                                    if (value.length < 6) {
-                                      return 'Minimum 6 characters';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                                const SizedBox(height: 12),
-
-                                // Forgot Password Link
-                                Align(
-                                  alignment: Alignment.centerRight,
-                                  child: GestureDetector(
-                                    onTap: _forgotPassword,
-                                    child: const Text(
-                                      'Forgot Password?',
-                                      style: TextStyle(
-                                        color: AuthTheme.primaryGreen,
-                                        fontWeight: FontWeight.w500,
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                  ),
-                                ),
                                 const SizedBox(height: 24),
 
                                 // Submit Button
                                 SizedBox(
                                   height: 52,
                                   child: ElevatedButton(
-                                    onPressed: _isLoading ? null : _login,
+                                    onPressed: _isLoading ? null : _sendCode,
                                     style: AuthTheme.primaryButtonStyle,
                                     child: _isLoading
                                         ? const SizedBox(
@@ -414,7 +232,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                             ),
                                           )
                                         : const Text(
-                                            'Login',
+                                            'Send Code',
                                             style: TextStyle(
                                               fontSize: 16,
                                               fontWeight: FontWeight.bold,
@@ -503,7 +321,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                       onTap: () {
                                         Navigator.of(context).push(
                                           MaterialPageRoute(
-                                            builder: (_) => const SignUpScreen(),
+                                            builder: (_) => const AcceptInviteScreen(),
                                           ),
                                         );
                                       },

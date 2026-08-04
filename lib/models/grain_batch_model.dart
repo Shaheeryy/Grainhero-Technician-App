@@ -45,13 +45,15 @@ class GrainBatch {
 
   factory GrainBatch.fromJson(Map<String, dynamic> json) {
     return GrainBatch(
-      id: json['_id'] ?? json['id'] ?? '',
-      batchId: json['batch_id'] ?? '',
+      id: json['id']?.toString() ?? '',
+      batchId: json['batch_id']?.toString() ?? '',
       siloId: json['silo_id'] is String
           ? json['silo_id']
-          : json['silo_id']?['_id'] ?? json['silo_id']?['id'],
-      silo: json['silo_id'] is Map ? SiloInfo.fromJson(json['silo_id']) : null,
-      grainType: json['grain_type'] ?? '',
+          : json['silo_id']?['id'],
+      silo: json['silos'] is Map 
+          ? SiloInfo.fromJson(json['silos']) 
+          : null,
+      grainType: json['grain_type']?.toString() ?? '',
       quantityKg: (json['quantity_kg'] ?? 0).toDouble(),
       variety: json['variety'],
       grade: json['grade'],
@@ -76,7 +78,7 @@ class GrainBatch {
 
   Map<String, dynamic> toJson() {
     return {
-      '_id': id,
+      'id': id,
       'batch_id': batchId,
       'silo_id': siloId,
       'grain_type': grainType,
@@ -114,9 +116,9 @@ class SiloInfo {
 
   factory SiloInfo.fromJson(Map<String, dynamic> json) {
     return SiloInfo(
-      id: json['_id'] ?? json['id'] ?? '',
-      name: json['name'] ?? '',
-      siloId: json['silo_id'] ?? '',
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      siloId: json['silo_id']?.toString() ?? '',
       capacityKg: json['capacity_kg']?.toDouble(),
     );
   }

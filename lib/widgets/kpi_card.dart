@@ -50,8 +50,8 @@ class KpiCard extends StatelessWidget {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        cardColor.withOpacity(0.1),
-                        cardColor.withOpacity(0.2),
+                        cardColor.withValues(alpha: 0.1),
+                        cardColor.withValues(alpha: 0.2),
                       ],
                     ),
                     borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
@@ -141,7 +141,7 @@ class _TrendIndicator extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
       ),
       child: Row(
@@ -195,12 +195,12 @@ class KpiCardLarge extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [cardColor, cardColor.withOpacity(0.8)],
+          colors: [cardColor, cardColor.withValues(alpha: 0.8)],
         ),
         borderRadius: BorderRadius.circular(AppTheme.radiusXLarge),
         boxShadow: [
           BoxShadow(
-            color: cardColor.withOpacity(0.3),
+            color: cardColor.withValues(alpha: 0.3),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -224,7 +224,7 @@ class KpiCardLarge extends StatelessWidget {
                         title,
                         style: TextStyle(
                           fontSize: 14,
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -243,7 +243,7 @@ class KpiCardLarge extends StatelessWidget {
                           description!,
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.white.withOpacity(0.7),
+                            color: Colors.white.withValues(alpha: 0.7),
                           ),
                         ),
                       ],
@@ -255,7 +255,7 @@ class KpiCardLarge extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
                   ),
                   child: Icon(

@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../dashboard/dashboard_screen.dart';
-import '../grain_batches/grain_batches_screen.dart';
 import '../sensors/sensors_screen.dart';
 import '../actuators/actuators_screen.dart';
-import '../alerts/alerts_screen.dart';
 import '../profile/profile_screen.dart';
-import '../qr_scanner/qr_scanner_screen.dart';
 import '../silos/silos_screen.dart';
 import '../../config/app_theme.dart';
 
@@ -117,7 +114,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         border: Border.all(color: AppTheme.borderColor, width: 0.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.4),
+            color: Colors.black.withValues(alpha: 0.4),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
@@ -150,7 +147,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
         padding: const EdgeInsets.symmetric(vertical: 8),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppTheme.primaryColor.withOpacity(0.12)
+              ? AppTheme.primaryColor.withValues(alpha: 0.12)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
         ),

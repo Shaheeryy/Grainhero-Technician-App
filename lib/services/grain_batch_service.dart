@@ -1,10 +1,10 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import '../config/api_config.dart';
+import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/grain_batch_model.dart';
-import '../utils/secure_storage.dart';
 
 class GrainBatchService {
+  final SupabaseClient _supabase = Supabase.instance.client;
+
   /// Get all grain batches with pagination and filters
   Future<Map<String, dynamic>> getGrainBatches({
     int page = 1,
@@ -13,64 +13,55 @@ class GrainBatchService {
     String? grainType,
     String? siloId,
   }) async {
-    final token = await SecureStorage.getToken();
-    if (token == null) throw Exception('Not authenticated');
+    try {
+      var query = _supabase
+          .from('grain_batches')
+          .select('*, silos(id, name, silo_id)');
+          
+      if (status != null && status.isNotEmpty) {
+        query = query.eq('status', status);
+      }
+      if (grainType != null && grainType.isNotEmpty) {
+        query = query.eq('grain_type', grainType);
+      }
+      if (siloId != null && siloId.isNotEmpty) {
+        query = query.eq('silo_id', siloId);
+      }
 
-    final queryParams = <String, String>{
-      'page': page.toString(),
-      'limit': limit.toString(),
-    };
-    if (status != null) queryParams['status'] = status;
-    if (grainType != null) queryParams['grain_type'] = grainType;
-    if (siloId != null) queryParams['silo_id'] = siloId;
-
-    final uri = Uri.parse(
-      ApiConfig.grainBatches,
-    ).replace(queryParameters: queryParams);
-
-    final response = await http.get(
-      uri,
-      headers: ApiConfig.getHeaders(token: token),
-    );
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
+      // Pagination
+      final from = (page - 1) * limit;
+      final to = from + limit - 1;
+      
+      final data = await query.range(from, to).order('created_at', ascending: false);
+      
+      final batches = (data as List).map((e) => GrainBatch.fromJson(e)).toList();
+      
       return {
-        'batches':
-            (data['batches'] as List<dynamic>?)
-                ?.map((e) => GrainBatch.fromJson(e))
-                .toList() ??
-            [],
-        'pagination': data['pagination'] ?? {},
+        'batches': batches,
+        'pagination': {
+          'page': page,
+          'limit': limit,
+        },
       };
-    } else if (response.statusCode == 401) {
-      throw Exception('Unauthorized');
-    } else {
-      final error = jsonDecode(response.body);
-      throw Exception(error['error'] ?? 'Failed to load grain batches');
+    } catch (e) {
+      debugPrint('Error getting grain batches: $e');
+      throw Exception('Failed to load grain batches');
     }
   }
 
   /// Get grain batch by ID
   Future<GrainBatch> getGrainBatchById(String id) async {
-    final token = await SecureStorage.getToken();
-    if (token == null) throw Exception('Not authenticated');
-
-    final response = await http.get(
-      Uri.parse(ApiConfig.grainBatchDetails(id)),
-      headers: ApiConfig.getHeaders(token: token),
-    );
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
+    try {
+      final data = await _supabase
+          .from('grain_batches')
+          .select('*, silos(id, name, silo_id)')
+          .eq('id', id)
+          .single();
+          
       return GrainBatch.fromJson(data);
-    } else if (response.statusCode == 401) {
-      throw Exception('Unauthorized');
-    } else if (response.statusCode == 404) {
-      throw Exception('Batch not found');
-    } else {
-      final error = jsonDecode(response.body);
-      throw Exception(error['error'] ?? 'Failed to load grain batch');
+    } catch (e) {
+      debugPrint('Error fetching grain batch: $e');
+      throw Exception('Failed to load grain batch');
     }
   }
 
@@ -78,35 +69,27 @@ class GrainBatchService {
   Future<GrainBatch> updateGrainBatch(
     String id, {
     String? status,
-    int? qualityScore,
+    // Note: qualityScore is dropped as it's not in the Supabase schema
     double? moistureContent,
   }) async {
-    final token = await SecureStorage.getToken();
-    if (token == null) throw Exception('Not authenticated');
+    final updates = <String, dynamic>{
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+    if (status != null) updates['status'] = status;
+    if (moistureContent != null) updates['moisture_content'] = moistureContent;
 
-    final body = <String, dynamic>{};
-    if (status != null) body['status'] = status;
-    if (qualityScore != null) body['quality_score'] = qualityScore;
-    if (moistureContent != null) body['moisture_content'] = moistureContent;
-
-    final response = await http.patch(
-      Uri.parse(ApiConfig.updateGrainBatch(id)),
-      headers: ApiConfig.getHeaders(token: token),
-      body: jsonEncode(body),
-    );
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return GrainBatch.fromJson(data['batch'] ?? data);
-    } else if (response.statusCode == 401) {
-      throw Exception('Unauthorized');
-    } else if (response.statusCode == 403) {
-      throw Exception('Insufficient permissions');
-    } else if (response.statusCode == 404) {
-      throw Exception('Batch not found');
-    } else {
-      final error = jsonDecode(response.body);
-      throw Exception(error['error'] ?? 'Failed to update grain batch');
+    try {
+      final data = await _supabase
+          .from('grain_batches')
+          .update(updates)
+          .eq('id', id)
+          .select('*, silos(id, name, silo_id)')
+          .single();
+          
+      return GrainBatch.fromJson(data);
+    } catch (e) {
+      debugPrint('Error updating grain batch: $e');
+      throw Exception('Failed to update grain batch');
     }
   }
 }

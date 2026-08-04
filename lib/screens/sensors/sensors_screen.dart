@@ -132,7 +132,7 @@ class _SensorsScreenState extends State<SensorsScreen> {
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: _selectedStatus != null
-                      ? AppTheme.primaryColor.withOpacity(0.1)
+                      ? AppTheme.primaryColor.withValues(alpha: 0.1)
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -203,7 +203,7 @@ class _SensorsScreenState extends State<SensorsScreen> {
                         setState(() => _selectedStatus = null);
                         _loadSensors(refresh: true);
                       },
-                      backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+                      backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
                       labelStyle: const TextStyle(color: AppTheme.primaryColor),
                       deleteIconColor: AppTheme.primaryColor,
                     ),
@@ -288,7 +288,7 @@ class _SensorsScreenState extends State<SensorsScreen> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withOpacity(0.1),
+                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
                     ),
                     child: const Icon(Icons.domain, size: 18, color: AppTheme.primaryColor),
@@ -361,7 +361,7 @@ class _SensorsScreenState extends State<SensorsScreen> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withOpacity(0.1),
+                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                       ),
                       child: const Icon(Icons.sensors, color: AppTheme.primaryColor, size: 22),
@@ -396,7 +396,7 @@ class _SensorsScreenState extends State<SensorsScreen> {
                         color: isOnline ? AppTheme.successColor : AppTheme.errorColor,
                         shape: BoxShape.circle,
                         boxShadow: isOnline
-                            ? [BoxShadow(color: AppTheme.successColor.withOpacity(0.4), blurRadius: 4)]
+                            ? [BoxShadow(color: AppTheme.successColor.withValues(alpha: 0.4), blurRadius: 4)]
                             : null,
                       ),
                     ),
@@ -415,10 +415,10 @@ class _SensorsScreenState extends State<SensorsScreen> {
                       return Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: _getSensorTypeColor(type).withOpacity(0.1),
+                          color: _getSensorTypeColor(type).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(
-                            color: _getSensorTypeColor(type).withOpacity(0.3),
+                            color: _getSensorTypeColor(type).withValues(alpha: 0.3),
                             width: 0.5,
                           ),
                         ),
@@ -709,7 +709,7 @@ class _SensorsScreenState extends State<SensorsScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppTheme.primaryColor.withOpacity(0.1)
+              ? AppTheme.primaryColor.withValues(alpha: 0.1)
               : AppTheme.backgroundColor,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(

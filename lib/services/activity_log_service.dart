@@ -1,44 +1,43 @@
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import '../config/api_config.dart';
+import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/activity_log_model.dart';
-import '../utils/secure_storage.dart';
 
 class ActivityLogService {
+  static final SupabaseClient _supabase = Supabase.instance.client;
+
   /// Fetch paginated activity logs
   static Future<Map<String, dynamic>> fetchLogs({
     int page = 1,
     int limit = 20,
     String? category,
   }) async {
-    final token = await SecureStorage.getToken();
-    if (token == null) throw Exception('Not authenticated');
+    try {
+      var query = _supabase
+          .from('activity_logs')
+          .select('*');
+          
+      if (category != null && category.isNotEmpty) {
+        query = query.eq('category', category);
+      }
 
-    var uri = Uri.parse('${ApiConfig.activityLogs}?page=$page&limit=$limit');
-    if (category != null && category.isNotEmpty) {
-      uri = Uri.parse('${uri.toString()}&category=$category');
-    }
-
-    final response = await http
-        .get(
-          uri,
-          headers: ApiConfig.getHeaders(token: token),
-        )
-        .timeout(const Duration(seconds: 15));
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      final List logsList = data['logs'] ?? [];
-
+      // Pagination
+      final from = (page - 1) * limit;
+      final to = from + limit - 1;
+      
+      final data = await query.range(from, to).order('created_at', ascending: false);
+      
+      final logs = (data as List).map((json) => ActivityLogModel.fromJson(json)).toList();
+      
       return {
-        'logs': logsList.map((json) => ActivityLogModel.fromJson(json as Map<String, dynamic>)).toList(),
-        'pagination': data['pagination'] ?? {},
+        'logs': logs,
+        'pagination': {
+          'page': page,
+          'limit': limit,
+        },
       };
-    } else if (response.statusCode == 401) {
-      throw Exception('Unauthorized');
-    } else {
-      final error = jsonDecode(response.body);
-      throw Exception(error['error'] ?? 'Failed to fetch logs');
+    } catch (e) {
+      debugPrint('Error fetching activity logs: $e');
+      throw Exception('Failed to fetch logs');
     }
   }
 }

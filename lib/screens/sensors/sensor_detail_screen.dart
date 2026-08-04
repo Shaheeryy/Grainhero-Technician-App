@@ -5,7 +5,6 @@ import '../../services/sensor_service.dart';
 import '../../widgets/error_widget.dart';
 import '../../widgets/status_badge.dart';
 import '../../widgets/temperature_chart.dart';
-import 'package:intl/intl.dart';
 
 class SensorDetailScreen extends StatefulWidget {
   final String sensorId;
@@ -21,7 +20,6 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
   bool _loading = true;
   String? _error;
   List<SensorReading> _readings = [];
-  bool _loadingReadings = false;
 
   @override
   void initState() {
@@ -43,17 +41,13 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
   }
 
   Future<void> _loadReadings() async {
-    setState(() => _loadingReadings = true);
     try {
       final result = await _svc.getSensorReadings(widget.sensorId, limit: 50);
       if (!mounted) return;
       setState(() {
         _readings = result['readings'] as List<SensorReading>? ?? [];
-        _loadingReadings = false;
       });
-    } catch (_) {
-      if (mounted) setState(() => _loadingReadings = false);
-    }
+    } catch (_) {}
   }
 
   // Chart helpers
@@ -125,7 +119,6 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
                           ..._buildCharts(),
                           _deviceHealthCard(),
                           const SizedBox(height: AppTheme.spacingL),
-                          _actionButtons(),
                         ]),
                       ),
                     ),
@@ -152,7 +145,7 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
         Row(children: [
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: AppTheme.primaryColor.withOpacity(0.1), borderRadius: BorderRadius.circular(AppTheme.radiusMedium)),
+            decoration: BoxDecoration(color: AppTheme.primaryColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppTheme.radiusMedium)),
             child: const Icon(Icons.sensors, color: AppTheme.primaryColor, size: 28),
           ),
           const SizedBox(width: AppTheme.spacingL),
@@ -212,7 +205,7 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
     return Container(
       padding: const EdgeInsets.all(AppTheme.spacingM),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.08),
+        color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
         border: Border(left: BorderSide(color: indicatorColor, width: 3)),
       ),
@@ -236,9 +229,9 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
-            color: _riskColor(dm.mlRiskClass).withOpacity(0.15),
+            color: _riskColor(dm.mlRiskClass).withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-            border: Border.all(color: _riskColor(dm.mlRiskClass).withOpacity(0.4)),
+            border: Border.all(color: _riskColor(dm.mlRiskClass).withValues(alpha: 0.4)),
           ),
           child: Text((dm.mlRiskClass ?? 'Unknown').toUpperCase(),
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: _riskColor(dm.mlRiskClass), letterSpacing: 1)),
@@ -270,8 +263,8 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
   Widget _tagChip(String text, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3))),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.3))),
       child: Text(text, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: color)),
     );
   }
@@ -347,83 +340,5 @@ class _SensorDetailScreenState extends State<SensorDetailScreen> {
         ]),
       ],
     ]);
-  }
-
-  Widget _actionButtons() {
-    return _card('Actions', [
-      SizedBox(width: double.infinity, child: OutlinedButton.icon(
-        onPressed: _showMaintenanceDialog, icon: const Icon(Icons.build_outlined, size: 18), label: const Text('Log Maintenance'),
-        style: OutlinedButton.styleFrom(foregroundColor: AppTheme.primaryColor, side: BorderSide(color: AppTheme.primaryColor.withOpacity(0.5)), padding: const EdgeInsets.symmetric(vertical: 14)),
-      )),
-    ]);
-  }
-
-  void _showMaintenanceDialog() {
-    final ctrl = TextEditingController();
-    showDialog(context: context, builder: (ctx) => AlertDialog(
-      backgroundColor: AppTheme.surfaceColor,
-      title: const Text('Log Maintenance', style: TextStyle(color: AppTheme.textPrimary)),
-      content: TextField(controller: ctrl, maxLines: 4, style: const TextStyle(color: AppTheme.textPrimary),
-        decoration: InputDecoration(hintText: 'Describe the maintenance...', hintStyle: const TextStyle(color: AppTheme.textHint),
-          filled: true, fillColor: AppTheme.backgroundColor, border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppTheme.radiusSmall), borderSide: BorderSide.none))),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-        ElevatedButton(
-          onPressed: () async {
-            final notes = ctrl.text.trim();
-            if (notes.isEmpty) return;
-            Navigator.pop(ctx);
-            try {
-              await _svc.logSensorMaintenance(widget.sensorId, notes);
-              if (!mounted) return;
-              
-              // Professional Success UI
-              showDialog(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  backgroundColor: AppTheme.surfaceColor,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.check_circle, color: AppTheme.successColor, size: 60),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Maintenance Logged',
-                        style: TextStyle(color: AppTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'The maintenance record has been saved and the farm administrator has been notified.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
-                      ),
-                      const SizedBox(height: 24),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryColor,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          child: const Text('Done', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-                        ),
-                      )
-                    ],
-                  ),
-                ),
-              );
-            } catch (e) {
-              if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: ${e.toString().replaceAll('Exception: ', '')}'), backgroundColor: AppTheme.errorColor, behavior: SnackBarBehavior.floating));
-            }
-          },
-          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
-          child: const Text('Submit', style: TextStyle(color: Colors.black)),
-        ),
-      ],
-    ));
   }
 }

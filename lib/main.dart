@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'config/app_theme.dart';
-import 'config/api_config.dart';
+import 'config/supabase_config.dart';
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
 import 'screens/auth/splash_screen.dart';
 import 'screens/sign_up_deep_link_handler.dart';
 import 'screens/auth/login_screen.dart';
-import 'screens/auth/sign_up_screen.dart';
+import 'screens/auth/accept_invite_screen.dart';
 import 'screens/main/main_screen.dart';
 import 'screens/grain_batches/grain_batch_detail_screen.dart';
 import 'screens/alerts/alerts_screen.dart';
@@ -19,11 +20,16 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize Supabase
+  await Supabase.initialize(
+    url: SupabaseConfig.supabaseUrl,
+    publishableKey: SupabaseConfig.supabaseAnonKey,
+  );
+
   // Initialize Firebase
   await Firebase.initializeApp();
 
-  // Print API configuration for debugging
-  ApiConfig.printConfig();
+  // API Config debug print removed
 
   // Initialize push notifications
   final notificationService = NotificationService();
@@ -81,7 +87,7 @@ class MyApp extends StatelessWidget {
         home: SignUpDeepLinkHandler(fallback: const SplashScreen()),
         routes: {
           '/login': (ctx) => const LoginScreen(),
-          '/signup': (ctx) => const SignUpScreen(),
+          '/signup': (ctx) => const AcceptInviteScreen(),
           '/main': (ctx) => const MainScreen(),
         },
       ),

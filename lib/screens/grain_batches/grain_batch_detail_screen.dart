@@ -6,7 +6,6 @@ import 'package:grainhero_technician_app/widgets/error_widget.dart';
 import 'package:grainhero_technician_app/widgets/status_badge.dart';
 import 'package:grainhero_technician_app/widgets/kpi_card.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class GrainBatchDetailScreen extends StatefulWidget {
   final String batchId;
@@ -330,7 +329,7 @@ class _GrainBatchDetailScreenState extends State<GrainBatchDetailScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withOpacity(0.1),
+                  color: AppTheme.primaryColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                 ),
                 child: const Icon(
@@ -363,7 +362,16 @@ class _GrainBatchDetailScreenState extends State<GrainBatchDetailScreen> {
                   ],
                 ),
               ),
-              StatusBadge(status: _batch!.status),
+              GestureDetector(
+                onTap: _updatingStatus ? null : _showUpdateStatusSheet,
+                child: _updatingStatus
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : StatusBadge(status: _batch!.status),
+              ),
             ],
           ),
           const SizedBox(height: AppTheme.spacingL),

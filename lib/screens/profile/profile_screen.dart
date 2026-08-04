@@ -419,11 +419,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   padding: const EdgeInsets.all(4),
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: AppTheme.primaryColor.withOpacity(0.2), width: 2),
+                    border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.2), width: 2),
                   ),
                   child: CircleAvatar(
                     radius: 50,
-                    backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+                    backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
                     backgroundImage: user?.avatar != null && user!.avatar!.isNotEmpty
                         ? NetworkImage(user.avatar!)
                         : null,
@@ -501,7 +501,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withOpacity(0.08),
+              color: AppTheme.primaryColor.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(icon, color: AppTheme.primaryColor, size: 20),
@@ -547,7 +547,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         leading: Container(
           padding: const EdgeInsets.all(8),
           decoration: BoxDecoration(
-            color: (iconColor ?? AppTheme.textSecondary).withOpacity(0.1),
+            color: (iconColor ?? AppTheme.textSecondary).withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Icon(
@@ -565,7 +565,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         trailing: Icon(
           Icons.chevron_right,
-          color: (textColor ?? AppTheme.textSecondary).withOpacity(0.5),
+          color: (textColor ?? AppTheme.textSecondary).withValues(alpha: 0.5),
           size: 20,
         ),
         onTap: onTap,

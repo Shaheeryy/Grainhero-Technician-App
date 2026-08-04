@@ -55,19 +55,20 @@ class ActuatorModel {
     this.healthStatus = 'unknown',
     this.maintenanceStatus = 'unknown',
   });
-
   factory ActuatorModel.fromJson(Map<String, dynamic> json) {
     // Determine the silo information
     String siloId = 'unknown';
     String siloName = 'Unknown Silo';
     String siloCode = 'UNK';
 
-    if (json['silo_id'] is Map<String, dynamic>) {
-      siloId = json['silo_id']['_id'] ?? json['silo_id']['silo_id'] ?? 'unknown';
-      siloName = json['silo_id']['name'] ?? 'Unknown Silo';
-      siloCode = json['silo_id']['silo_code'] ?? 'UNK';
-    } else if (json['silo_id'] is String) {
+    if (json['silo_id'] is String) {
       siloId = json['silo_id'];
+    }
+    if (json['silo_name'] is String) {
+      siloName = json['silo_name'];
+    }
+    if (json['silo_code'] is String) {
+      siloCode = json['silo_code'];
     }
 
     // Determine basic state from SensorDevice fields
@@ -86,7 +87,7 @@ class ActuatorModel {
     }
 
     return ActuatorModel(
-      id: json['_id'] ?? '',
+      id: json['id']?.toString() ?? '',
       actuatorId: json['device_id'] ?? json['actuator_id'] ?? '',
       name: json['device_name'] ?? json['name'] ?? 'Unknown Device',
       actuatorType: _determineActuatorType(json),

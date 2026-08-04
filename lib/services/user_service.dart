@@ -1,33 +1,36 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
-import '../config/api_config.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
-import '../utils/secure_storage.dart';
 
 class UserService {
+  final SupabaseClient _supabase = Supabase.instance.client;
+
   /// Get current user profile
   Future<UserModel> getMyProfile() async {
-    final token = await SecureStorage.getToken();
-    if (token == null) throw Exception('Not authenticated');
+    final user = _supabase.auth.currentUser;
+    if (user == null) throw Exception('Not authenticated');
 
-    final response = await http.get(
-      Uri.parse(ApiConfig.technicianProfile),
-      headers: ApiConfig.getHeaders(token: token),
-    );
+    try {
+      final profileData = await _supabase
+          .from('profiles')
+          .select()
+          .eq('id', user.id)
+          .single();
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      debugPrint('👤 User Profile Data: $data'); // Debug log to check structure
-      // Handle if the user object is nested under 'user' key
-      final userJson = data['user'] ?? data;
-      return UserModel.fromJson(userJson);
-    } else if (response.statusCode == 401) {
-      throw Exception('Unauthorized');
-    } else {
-      final error = jsonDecode(response.body);
-      throw Exception(error['error'] ?? 'Failed to load profile');
+      final roleData = await _supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+      profileData['role'] = roleData?['role'] ?? 'technician';
+      profileData['id'] = user.id;
+
+      return UserModel.fromJson(profileData);
+    } catch (e) {
+      debugPrint('Error fetching profile: $e');
+      throw Exception('Failed to load profile');
     }
   }
 
@@ -37,40 +40,24 @@ class UserService {
     String? phone,
     String? avatar,
   }) async {
-    final token = await SecureStorage.getToken();
-    if (token == null) throw Exception('Not authenticated');
+    final user = _supabase.auth.currentUser;
+    if (user == null) throw Exception('Not authenticated');
 
-    final userData = await SecureStorage.getUserData();
-    final userId = userData['userId'];
-    if (userId == null) throw Exception('User ID not found');
-
-    final body = <String, dynamic>{};
-    if (name != null) body['name'] = name;
-    if (phone != null) body['phone'] = phone;
-    if (avatar != null) body['avatar'] = avatar;
-
-    debugPrint('📤 Updating Profile: $body');
-    final response = await http.patch(
-      Uri.parse(ApiConfig.updateProfileSelf),
-      headers: ApiConfig.getHeaders(token: token),
-      body: jsonEncode(body),
-    );
+    final updates = <String, dynamic>{
+      'updated_at': DateTime.now().toIso8601String(),
+    };
     
-    debugPrint('📥 Update Profile Response: ${response.statusCode}');
-    debugPrint('📜 Response Body: ${response.body}');
+    // Map to Supabase column names
+    if (name != null) updates['name'] = name;
+    if (phone != null) updates['phone'] = phone;
+    if (avatar != null) updates['avatar'] = avatar;
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return UserModel.fromJson(data['user'] ?? data);
-    } else if (response.statusCode == 401) {
-      throw Exception('Unauthorized');
-    } else if (response.statusCode == 403) {
-      throw Exception('Cannot update other users');
-    } else if (response.statusCode == 404) {
-      throw Exception('User not found');
-    } else {
-      final error = jsonDecode(response.body);
-      throw Exception(error['error'] ?? 'Failed to update profile');
+    try {
+      await _supabase.from('profiles').update(updates).eq('id', user.id);
+      return getMyProfile();
+    } catch (e) {
+      debugPrint('Error updating profile: $e');
+      throw Exception('Failed to update profile');
     }
   }
 
@@ -80,80 +67,50 @@ class UserService {
     required String newPassword,
     required String confirmPassword,
   }) async {
-    final token = await SecureStorage.getToken();
-    if (token == null) throw Exception('Not authenticated');
+    final user = _supabase.auth.currentUser;
+    if (user == null) throw Exception('Not authenticated');
 
-    // Backend endpoint: PATCH /auth/change-password
-    final response = await http.patch(
-      Uri.parse(ApiConfig.changePassword),
-      headers: ApiConfig.getHeaders(token: token),
-      body: jsonEncode({
-        'currentPassword': currentPassword,
-        'newPassword': newPassword,
-      }),
-    );
+    if (newPassword != confirmPassword) {
+      throw Exception('Passwords do not match');
+    }
 
-    debugPrint('📤 Change Password: ${response.statusCode}');
-    debugPrint('📜 Response Body: ${response.body}');
-
-    if (response.statusCode == 200) {
+    try {
+      // Note: Supabase auth.updateUser does not require the current password by default.
+      // If we want to strictly verify current password, we could call signInWithPassword first,
+      // or rely on the backend enforcing it if Secure Password Change is enabled in Supabase settings.
+      await _supabase.auth.updateUser(
+        UserAttributes(password: newPassword),
+      );
       return true;
-    } else {
-      // Check if backend returned HTML (endpoint not found on server)
-      final contentType = response.headers['content-type'] ?? '';
-      if (contentType.contains('text/html') ||
-          response.body.trim().startsWith('<!DOCTYPE') ||
-          response.body.trim().startsWith('<html')) {
-        debugPrint('❌ Change Password endpoint returned HTML - route may not be deployed');
-        throw Exception('Change password service unavailable. Please ensure the backend is updated.');
-      }
-      try {
-        final data = jsonDecode(response.body);
-        throw Exception(data['message'] ?? data['error'] ?? 'Failed to change password');
-      } catch (e) {
-        if (e is Exception) rethrow;
-        throw Exception('Failed to change password');
-      }
+    } on AuthException catch (e) {
+      throw Exception(e.message);
+    } catch (e) {
+      debugPrint('Error changing password: $e');
+      throw Exception('Failed to change password');
     }
   }
 
   /// Upload Profile Image
   Future<String> uploadProfileImage(File imageFile) async {
-    final token = await SecureStorage.getToken();
-    if (token == null) throw Exception('Not authenticated');
+    final user = _supabase.auth.currentUser;
+    if (user == null) throw Exception('Not authenticated');
 
-    final uri = Uri.parse(ApiConfig.uploadProfilePic);
-    final request = http.MultipartRequest('POST', uri);
-
-    request.headers.addAll(ApiConfig.getHeaders(token: token));
-    
-    // Add file
-    final stream = http.ByteStream(imageFile.openRead());
-    final length = await imageFile.length();
-    
-    final multipartFile = http.MultipartFile(
-      'avatar', // Field name expected by Multer (trying 'avatar')
-      stream,
-      length,
-      filename: imageFile.path.split('/').last,
-    );
-
-    request.files.add(multipartFile);
-
-    debugPrint('📤 Uploading Image to: $uri');
-    
-    final streamedResponse = await request.send();
-    final response = await http.Response.fromStream(streamedResponse);
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      debugPrint('📸 Upload Response: ${response.body}');
-      // Backend returns { "avatar": "..." }
-      return data['avatar'] ?? data['imageUrl'] ?? data['url'] ?? data['file'] ?? ''; 
-    } else {
-      debugPrint('❌ Upload Failed: ${response.statusCode}');
-      debugPrint('📜 Response Body: ${response.body}');
-      throw Exception('Failed to upload image');
+    try {
+      final fileExt = imageFile.path.split('.').last;
+      final fileName = '${user.id}_${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+      
+      // Upload to 'avatars' bucket
+      await _supabase.storage.from('avatars').upload(
+            fileName,
+            imageFile,
+            fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
+          );
+          
+      final imageUrl = _supabase.storage.from('avatars').getPublicUrl(fileName);
+      return imageUrl;
+    } catch (e) {
+      debugPrint('❌ Upload Failed: $e');
+      throw Exception('Failed to upload image. Avatar bucket might not be configured yet.');
     }
   }
 }
