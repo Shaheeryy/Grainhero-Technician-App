@@ -8,17 +8,22 @@ class AuthTheme {
   // Primary
   static const Color primaryGreen = Color(0xFF2FAC0C);
   static const Color primaryGreenDark = Color(0xFF2FAC0C);
+  static const Color primaryDark = Color(0xFF176E00); // From UI prototypes
   static const Color primaryGreenSoft = Color(0x1F2FAC0C); // 12% opacity
 
   // Backgrounds
   static const Color greenOverlay = Color(0xFF252D26);
+  static const Color darkContainer = Color(0xFF3A413A);
   static const Color beigeBackground = Color(0xFFEDE9D4);
   static const Color cardBackground = Color(0xFFEDE9D4);
+  static const Color surface = Color(0xFFFFFFFF);
+  static const Color surfaceContainer = Color(0xFFF2F7F3);
 
   // Text
   static const Color textPrimary = Color(0xFF404F44);
   static const Color textSecondary = Color(0xFF252D26);
   static const Color textHint = Color(0xFF7B847D);
+  static const Color error = Color(0xFFBA1A1A);
 
   // Borders & Divider
   static const Color borderLight = Color(0xFFD5D0B9);

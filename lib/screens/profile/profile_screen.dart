@@ -5,7 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../services/auth_service.dart';
 import '../../services/user_service.dart';
 import '../../models/user_model.dart';
-import '../../config/app_theme.dart';
+import '../../config/grainhero_colors.dart';
 import '../auth/login_screen.dart';
 import 'change_password_screen.dart';
 import 'about_app_screen.dart';
@@ -54,17 +54,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _loading = true; // Show loading while uploading
       });
-      
+
       final file = File(image.path);
-      
+
       // 1. Upload Image
       final imageUrl = await _userService.uploadProfileImage(file);
-      
+
       if (imageUrl.isNotEmpty) {
         // 2. Update Profile with new Avatar URL
-        // Note: The backend's PATCH /auth/me should handle this.
         final updatedUser = await _userService.updateProfile(avatar: imageUrl);
-        
+
         setState(() {
           _userProfile = updatedUser;
           _loading = false;
@@ -72,35 +71,44 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Profile picture updated successfully'),
-              backgroundColor: AppTheme.successColor,
+            SnackBar(
+              content: const Text('Profile picture updated successfully'),
+              backgroundColor: GrainHeroColors.primary,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
             ),
           );
         }
       } else {
-         throw Exception('No image URL returned from upload');
+        throw Exception('No image URL returned from upload');
       }
-
     } catch (e) {
       setState(() {
         _loading = false;
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to update profile picture: $e')),
+          SnackBar(
+            content: Text('Failed to update profile picture: $e'),
+            backgroundColor: GrainHeroColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+          ),
         );
       }
     }
   }
 
   void _showEditProfileSheet(BuildContext context, UserModel? currentUser) {
-    // Ensure we have values or empty strings
     final nameController = TextEditingController(text: currentUser?.name ?? '');
     final phoneController = TextEditingController(text: currentUser?.phone ?? '');
-    
+
     bool isSaving = false;
-    
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -110,7 +118,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           builder: (context, setStateSheet) {
             return Container(
               decoration: const BoxDecoration(
-                color: AppTheme.surfaceColor,
+                color: GrainHeroColors.surface,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
               ),
               padding: EdgeInsets.only(
@@ -127,27 +135,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const Text(
                       'Edit Profile',
                       style: TextStyle(
-                        fontSize: 20, 
+                        fontSize: 20,
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.textPrimary,
+                        color: GrainHeroColors.bodyText,
                       ),
                     ),
                     const SizedBox(height: 24),
                     TextField(
                       controller: nameController,
-                      style: const TextStyle(color: AppTheme.textPrimary),
-                      decoration: const InputDecoration(
+                      style: const TextStyle(color: GrainHeroColors.bodyText),
+                      decoration: InputDecoration(
                         labelText: 'Full Name',
-                        border: OutlineInputBorder(),
+                        labelStyle: const TextStyle(color: GrainHeroColors.bodyText),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: GrainHeroColors.primary),
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
                     TextField(
                       controller: phoneController,
-                      style: const TextStyle(color: AppTheme.textPrimary),
-                      decoration: const InputDecoration(
+                      style: const TextStyle(color: GrainHeroColors.bodyText),
+                      decoration: InputDecoration(
                         labelText: 'Phone',
-                        border: OutlineInputBorder(),
+                        labelStyle: const TextStyle(color: GrainHeroColors.bodyText),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: GrainHeroColors.primary),
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                       keyboardType: TextInputType.phone,
                     ),
@@ -162,11 +184,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   isSaving = true;
                                 });
                                 try {
-                                  final updatedUser = await _userService
-                                      .updateProfile(
-                                        name: nameController.text.trim(),
-                                        phone: phoneController.text.trim(),
-                                      );
+                                  final updatedUser = await _userService.updateProfile(
+                                    name: nameController.text.trim(),
+                                    phone: phoneController.text.trim(),
+                                  );
                                   if (mounted) {
                                     setState(() {
                                       _userProfile = updatedUser;
@@ -175,9 +196,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   if (context.mounted) {
                                     Navigator.pop(context);
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Profile updated'),
-                                        backgroundColor: AppTheme.successColor,
+                                      SnackBar(
+                                        content: const Text('Profile updated'),
+                                        backgroundColor: GrainHeroColors.primary,
+                                        behavior: SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
                                       ),
                                     );
                                   }
@@ -185,8 +210,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
-                                        content: Text('Failed:  ${e.toString()}'),
-                                        backgroundColor: AppTheme.errorColor,
+                                        content: Text('Failed: ${e.toString()}'),
+                                        backgroundColor: GrainHeroColors.error,
+                                        behavior: SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
                                       ),
                                     );
                                   }
@@ -197,11 +226,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 }
                               },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primaryColor,
+                          backgroundColor: GrainHeroColors.primary,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(26),
                           ),
                         ),
                         child: isSaving
@@ -232,253 +261,301 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _showLogoutDialog(BuildContext context) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Logout'),
-        content: const Text('Are you sure you want to logout?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final authService = Provider.of<AuthService>(
-                context,
-                listen: false,
-              );
-              await authService.logout();
-
-              if (!context.mounted) return;
-
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-                (route) => false,
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.errorColor,
-              foregroundColor: Colors.white,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: GrainHeroColors.surface,
+          surfaceTintColor: Colors.transparent,
+          icon: const SizedBox(
+            width: 48,
+            height: 48,
+            child: Icon(
+              Icons.logout_rounded,
+              color: GrainHeroColors.error,
+              size: 32,
             ),
-            child: const Text('Logout'),
           ),
-        ],
-      ),
+          iconPadding: const EdgeInsets.fromLTRB(24, 20, 24, 6),
+          title: const Text(
+            'Logout?',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: GrainHeroColors.bodyText,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          titlePadding: const EdgeInsets.symmetric(horizontal: 24),
+          content: const Text(
+            'Are you sure you want to logout from GrainHero?',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: GrainHeroColors.bodyText,
+            ),
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(30),
+          ),
+          actionsAlignment: MainAxisAlignment.center,
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+              },
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: GrainHeroColors.primaryDark),
+              ),
+            ),
+            FilledButton(
+              onPressed: () async {
+                Navigator.pop(dialogContext);
+
+                final authService = Provider.of<AuthService>(
+                  context,
+                  listen: false,
+                );
+                await authService.logout();
+
+                if (!context.mounted) return;
+
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  (route) => false,
+                );
+              },
+              style: FilledButton.styleFrom(
+                backgroundColor: GrainHeroColors.error,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+              child: const Text('Logout'),
+            ),
+          ],
+        );
+      },
     );
+  }
+
+  void _goBack() {
+    Navigator.of(context).maybePop();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      appBar: AppBar(
-        title: const Text(
-          'Profile',
-          style: TextStyle(
-            fontWeight: FontWeight.w600,
-            color: AppTheme.textPrimary,
-          ),
-        ),
-        backgroundColor: AppTheme.surfaceColor,
-        elevation: 0,
-      ),
+      backgroundColor: GrainHeroColors.pageBackground,
       body: _loading
           ? const Center(
-              child: CircularProgressIndicator(color: AppTheme.primaryColor),
+              child: CircularProgressIndicator(color: GrainHeroColors.primary),
             )
           : Consumer<AuthService>(
               builder: (context, authService, _) {
                 // Prioritize local profile fetch, fall back to auth service user
                 final user = _userProfile ?? authService.user;
 
-                return SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      _buildHeader(user),
-                      const SizedBox(height: AppTheme.spacingXL),
-                      
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingL),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Account Info',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.textPrimary,
-                              ),
-                            ),
-                            const SizedBox(height: AppTheme.spacingM),
-                            _buildInfoCard(
-                              context,
-                              'Assigned Sites',
-                              '${user?.assignedSites.length ?? 0} sites',
-                              Icons.warehouse_outlined,
-                            ),
-                            const SizedBox(height: AppTheme.spacingS),
-                            _buildInfoCard(
-                              context,
-                              'Role',
-                              (user?.role.toUpperCase() ?? 'TECHNICIAN'),
-                              Icons.badge_outlined,
-                            ),
-                          ],
-                        ),
+                return ListView(
+                  padding: EdgeInsets.zero,
+                  physics: const BouncingScrollPhysics(),
+                  children: [
+                    // =====================================================
+                    // Profile Header Section
+                    // Displays header background, back button, title, avatar, user details
+                    // =====================================================
+                    _ProfileHeader(
+                      user: user,
+                      onBackPressed: _goBack,
+                      onEditPicturePressed: _pickImage,
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // =====================================================
+                    // Account Summary Card
+                    // Displays Assigned Sites and User Role
+                    // =====================================================
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: _AccountSummaryCard(user: user),
+                    ),
+
+                    const SizedBox(height: 32),
+
+                    // =====================================================
+                    // Settings Section
+                    // Menu list containing options like Edit Profile, Change Password, etc.
+                    // =====================================================
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: _SettingsSection(
+                        onEditProfilePressed: () => _showEditProfileSheet(context, user),
+                        onChangePasswordPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
+                          );
+                        },
+                        onAboutAppPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const AboutAppScreen()),
+                          );
+                        },
+                        onActivityLogsPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const ActivityLogsScreen()),
+                          );
+                        },
                       ),
+                    ),
 
-                      const SizedBox(height: AppTheme.spacingXL),
+                    const SizedBox(height: 30),
 
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingL),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Settings',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: AppTheme.textPrimary,
-                              ),
-                            ),
-                            const SizedBox(height: AppTheme.spacingM),
-                            _buildSettingsTile(
-                              icon: Icons.edit_outlined,
-                              title: 'Edit Profile',
-                              onTap: () => _showEditProfileSheet(context, user),
-                            ),
-                            const SizedBox(height: AppTheme.spacingS),
-                            _buildSettingsTile(
-                              icon: Icons.lock_outline,
-                              title: 'Change Password',
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
-                                );
-                              },
-                            ),
-                            const SizedBox(height: AppTheme.spacingS),
-                            _buildSettingsTile(
-                              icon: Icons.info_outline,
-                              title: 'About App',
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => const AboutAppScreen()),
-                              ),
-                            ),
-                            const SizedBox(height: AppTheme.spacingS),
-                            _buildSettingsTile(
-                              icon: Icons.history,
-                              title: 'Activity Logs',
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => const ActivityLogsScreen()),
-                              ),
-                            ),
-                          ],
-                        ),
+                    // =====================================================
+                    // Logout Action Button
+                    // Prompts confirmation dialog to logout user
+                    // =====================================================
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: _LogoutButton(
+                        onPressed: () => _showLogoutDialog(context),
                       ),
+                    ),
 
-                      const SizedBox(height: AppTheme.spacingXL),
-
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingL),
-                        child: _buildSettingsTile(
-                          icon: Icons.logout,
-                          title: 'Logout',
-                          textColor: AppTheme.errorColor,
-                          iconColor: AppTheme.errorColor,
-                          onTap: () => _showLogoutDialog(context),
-                        ),
-                      ),
-
-                      const SizedBox(height: 100),
-                    ],
-                  ),
+                    const SizedBox(height: 40),
+                  ],
                 );
               },
             ),
     );
   }
+}
 
-  Widget _buildHeader(UserModel? user) {
+// ============================================================
+// PROFILE HEADER WIDGET
+// ============================================================
+
+class _ProfileHeader extends StatelessWidget {
+  const _ProfileHeader({
+    required this.user,
+    required this.onBackPressed,
+    required this.onEditPicturePressed,
+  });
+
+  final UserModel? user;
+  final VoidCallback onBackPressed;
+  final VoidCallback onEditPicturePressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final double statusBarHeight = MediaQuery.paddingOf(context).top;
+
+    final String name = (user?.name != null && user!.name.isNotEmpty)
+        ? user!.name
+        : 'Technician';
+    final String email = user?.email ?? '';
+    final String phone = user?.phone ?? '';
+
     return Container(
       width: double.infinity,
-      color: AppTheme.surfaceColor,
-      padding: const EdgeInsets.only(bottom: 20),
+      padding: EdgeInsets.fromLTRB(16, statusBarHeight + 8, 16, 22),
+      decoration: BoxDecoration(
+        color: GrainHeroColors.dark,
+        borderRadius: const BorderRadius.vertical(
+          bottom: Radius.circular(42),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 30,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
       child: Column(
         children: [
-          const SizedBox(height: 20),
-          GestureDetector(
-            onTap: _pickImage,
-            child: Stack(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.2), width: 2),
-                  ),
-                  child: CircleAvatar(
-                    radius: 50,
-                    backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
-                    backgroundImage: user?.avatar != null && user!.avatar!.isNotEmpty
-                        ? NetworkImage(user.avatar!)
-                        : null,
-                    child: (user?.avatar == null || user!.avatar!.isEmpty)
-                        ? Text(
-                            (user?.name.isNotEmpty == true ? user!.name.substring(0, 1).toUpperCase() : 'T'),
-                            style: const TextStyle(
-                              fontSize: 36,
-                              fontWeight: FontWeight.bold,
-                              color: AppTheme.primaryColor,
-                            ),
-                          )
-                        : null,
+          // Navigation Row
+          Row(
+            children: [
+              IconButton(
+                onPressed: onBackPressed,
+                tooltip: 'Back',
+                style: IconButton.styleFrom(
+                  fixedSize: const Size(44, 44),
+                  foregroundColor: Colors.white,
+                  backgroundColor: Colors.white.withValues(alpha: 0.08),
+                  shape: const CircleBorder(),
+                ),
+                icon: const Icon(Icons.arrow_back_rounded, size: 23),
+              ),
+
+              const Expanded(
+                child: Text(
+                  'Profile',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    height: 1.25,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.6,
                   ),
                 ),
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: const BoxDecoration(
-                      color: AppTheme.primaryColor,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.camera_alt, color: Colors.white, size: 20),
-                  ),
-                ),
-              ],
-            ),
+              ),
+
+              const SizedBox(width: 44, height: 44),
+            ],
           ),
-          const SizedBox(height: 16),
+
+          const SizedBox(height: 12),
+
+          // Avatar Image & Edit Trigger
+          _ProfileAvatar(
+            avatarUrl: user?.avatar,
+            name: name,
+            onEditPressed: onEditPicturePressed,
+          ),
+
+          const SizedBox(height: 12),
+
+          // User Name
           Text(
-            (user?.name != null && user!.name.isNotEmpty) ? user.name : 'Technician',
+            name,
+            textAlign: TextAlign.center,
             style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: AppTheme.textPrimary,
+              color: Colors.white,
+              fontSize: 22,
+              height: 1.25,
+              fontWeight: FontWeight.w700,
             ),
           ),
-          const SizedBox(height: 4),
-          if (user?.email != null)
+
+          if (email.isNotEmpty) ...[
+            const SizedBox(height: 5),
             Text(
-              user!.email,
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppTheme.textSecondary,
+              email,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.72),
+                fontSize: 13,
+                height: 1.4,
+                fontWeight: FontWeight.w400,
               ),
             ),
-          if (user?.phone != null) ...[
-            const SizedBox(height: 4),
+          ],
+
+          if (phone.isNotEmpty) ...[
+            const SizedBox(height: 3),
             Text(
-              user!.phone,
-              style: const TextStyle(
-                fontSize: 14,
-                color: AppTheme.textSecondary,
+              phone,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.58),
+                fontSize: 11,
+                height: 1.4,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.8,
               ),
             ),
           ],
@@ -486,90 +563,421 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
+}
 
-  Widget _buildInfoCard(
-    BuildContext context,
-    String title,
-    String value,
-    IconData icon,
-  ) {
-    return Container(
-      decoration: AppTheme.cardDecoration,
-      padding: const EdgeInsets.all(AppTheme.spacingM),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppTheme.primaryColor.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: AppTheme.primaryColor, size: 20),
+// ============================================================
+// PROFILE AVATAR WIDGET
+// ============================================================
+
+class _ProfileAvatar extends StatelessWidget {
+  const _ProfileAvatar({
+    required this.avatarUrl,
+    required this.name,
+    required this.onEditPressed,
+  });
+
+  final String? avatarUrl;
+  final String name;
+  final VoidCallback onEditPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool hasAvatar = avatarUrl != null && avatarUrl!.isNotEmpty;
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          width: 92,
+          height: 92,
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: GrainHeroColors.dark,
+            border: Border.all(color: GrainHeroColors.primary, width: 4),
+            boxShadow: [
+              BoxShadow(
+                color: GrainHeroColors.primary.withValues(alpha: 0.28),
+                spreadRadius: 2,
+                blurRadius: 14,
+              ),
+            ],
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+          child: Container(
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: GrainHeroColors.surfaceContainer,
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: hasAvatar
+                ? Image.network(
+                    avatarUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (context, error, stackTrace) => _buildFallbackIcon(),
+                  )
+                : _buildFallbackIcon(),
+          ),
+        ),
+
+        Positioned(
+          right: -2,
+          bottom: 1,
+          child: Material(
+            color: GrainHeroColors.primary,
+            shape: const CircleBorder(),
+            elevation: 5,
+            child: InkWell(
+              onTap: onEditPressed,
+              customBorder: const CircleBorder(),
+              child: const SizedBox(
+                width: 32,
+                height: 32,
+                child: Icon(
+                  Icons.edit_rounded,
+                  color: Colors.white,
+                  size: 16,
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
-              ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFallbackIcon() {
+    final String initial = name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'T';
+    return Center(
+      child: Text(
+        initial,
+        style: const TextStyle(
+          fontSize: 36,
+          fontWeight: FontWeight.bold,
+          color: GrainHeroColors.primary,
+        ),
+      ),
+    );
+  }
+}
+
+// ============================================================
+// ACCOUNT SUMMARY CARD WIDGET
+// ============================================================
+
+class _AccountSummaryCard extends StatelessWidget {
+  const _AccountSummaryCard({required this.user});
+
+  final UserModel? user;
+
+  @override
+  Widget build(BuildContext context) {
+    final int sitesCount = user?.assignedSites.length ?? 0;
+    final String role = user?.role.toUpperCase() ?? 'TECHNICIAN';
+
+    return Material(
+      color: GrainHeroColors.surface,
+      elevation: 2,
+      shadowColor: GrainHeroColors.primary.withValues(alpha: 0.12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(40),
+        side: BorderSide(color: GrainHeroColors.bodyText.withValues(alpha: 0.12)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: IntrinsicHeight(
+        child: Row(
+          children: [
+            Expanded(
+              child: _AccountSummaryItem(
+                icon: Icons.domain_rounded,
+                label: 'ASSIGNED SITES',
+                value: '$sitesCount sites',
+              ),
+            ),
+
+            VerticalDivider(
+              width: 1,
+              thickness: 1,
+              color: GrainHeroColors.bodyText.withValues(alpha: 0.15),
+            ),
+
+            Expanded(
+              child: _AccountSummaryItem(
+                icon: Icons.badge_outlined,
+                label: 'ROLE',
+                value: role,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AccountSummaryItem extends StatelessWidget {
+  const _AccountSummaryItem({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 20),
+      child: Column(
+        children: [
+          SizedBox(
+            width: 44,
+            height: 44,
+            child: Icon(icon, color: GrainHeroColors.primaryDark, size: 22),
+          ),
+
+          const SizedBox(height: 10),
+
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: GrainHeroColors.bodyText.withValues(alpha: 0.6),
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.8,
+            ),
+          ),
+
+          const SizedBox(height: 4),
+
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: GrainHeroColors.bodyText,
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildSettingsTile({
-    required IconData icon,
-    required String title,
-    required VoidCallback onTap,
-    Color? textColor,
-    Color? iconColor,
-  }) {
-    return Container(
-      decoration: AppTheme.cardDecoration,
-      margin: const EdgeInsets.only(bottom: 0),
-      child: ListTile(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusMedium)),
-        leading: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: (iconColor ?? AppTheme.textSecondary).withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(
-            icon,
-            color: iconColor ?? AppTheme.textSecondary,
-            size: 20,
+// ============================================================
+// SETTINGS SECTION WIDGET
+// ============================================================
+
+class _SettingsSection extends StatelessWidget {
+  const _SettingsSection({
+    required this.onEditProfilePressed,
+    required this.onChangePasswordPressed,
+    required this.onAboutAppPressed,
+    required this.onActivityLogsPressed,
+  });
+
+  final VoidCallback onEditProfilePressed;
+  final VoidCallback onChangePasswordPressed;
+  final VoidCallback onAboutAppPressed;
+  final VoidCallback onActivityLogsPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(left: 4),
+          child: Text(
+            'Settings',
+            style: TextStyle(
+              color: GrainHeroColors.dark,
+              fontSize: 22,
+              height: 1.3,
+              fontWeight: FontWeight.w800,
+              letterSpacing: -0.4,
+            ),
           ),
         ),
-        title: Text(
-          title,
-          style: TextStyle(
-            fontWeight: FontWeight.w500,
-            color: textColor ?? AppTheme.textPrimary,
+
+        const SizedBox(height: 14),
+
+        Card(
+          margin: EdgeInsets.zero,
+          color: GrainHeroColors.surface,
+          elevation: 2,
+          shadowColor: GrainHeroColors.primary.withValues(alpha: 0.10),
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(40),
+            side: BorderSide(color: GrainHeroColors.bodyText.withValues(alpha: 0.12)),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              _SettingsItem(
+                icon: Icons.manage_accounts_outlined,
+                title: 'Edit Profile',
+                onPressed: onEditProfilePressed,
+              ),
+
+              const _SettingsDivider(),
+
+              _SettingsItem(
+                icon: Icons.lock_reset_rounded,
+                title: 'Change Password',
+                onPressed: onChangePasswordPressed,
+              ),
+
+              const _SettingsDivider(),
+
+              _SettingsItem(
+                icon: Icons.info_outline_rounded,
+                title: 'About App',
+                onPressed: onAboutAppPressed,
+              ),
+
+              const _SettingsDivider(),
+
+              _SettingsItem(
+                icon: Icons.history_rounded,
+                title: 'Activity Logs',
+                onPressed: onActivityLogsPressed,
+              ),
+            ],
           ),
         ),
-        trailing: Icon(
-          Icons.chevron_right,
-          color: (textColor ?? AppTheme.textSecondary).withValues(alpha: 0.5),
-          size: 20,
+      ],
+    );
+  }
+}
+
+class _SettingsItem extends StatelessWidget {
+  const _SettingsItem({
+    required this.icon,
+    required this.title,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String title;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onPressed,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 17),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 44,
+              height: 44,
+              child: Icon(icon, color: GrainHeroColors.primaryDark, size: 22),
+            ),
+
+            const SizedBox(width: 15),
+
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  color: GrainHeroColors.bodyText,
+                  fontSize: 16,
+                  height: 1.3,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+
+            Icon(
+              Icons.chevron_right_rounded,
+              color: GrainHeroColors.bodyText.withValues(alpha: 0.4),
+              size: 21,
+            ),
+          ],
         ),
-        onTap: onTap,
       ),
     );
   }
 }
+
+class _SettingsDivider extends StatelessWidget {
+  const _SettingsDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Divider(
+      height: 1,
+      thickness: 1,
+      color: GrainHeroColors.bodyText.withValues(alpha: 0.12),
+    );
+  }
+}
+
+// ============================================================
+// LOGOUT BUTTON WIDGET
+// ============================================================
+
+class _LogoutButton extends StatelessWidget {
+  const _LogoutButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: GrainHeroColors.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(28),
+        side: BorderSide(color: GrainHeroColors.bodyText.withValues(alpha: 0.12)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onPressed,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 17, vertical: 15),
+          child: Row(
+            children: [
+              const SizedBox(
+                width: 44,
+                height: 44,
+                child: Icon(
+                  Icons.logout_rounded,
+                  color: GrainHeroColors.error,
+                  size: 22,
+                ),
+              ),
+
+              const SizedBox(width: 14),
+
+              const Expanded(
+                child: Text(
+                  'Logout',
+                  style: TextStyle(
+                    color: GrainHeroColors.bodyText,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+
+              Icon(
+                Icons.chevron_right_rounded,
+                color: GrainHeroColors.bodyText.withValues(alpha: 0.4),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+

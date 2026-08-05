@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:grainhero_technician_app/config/app_theme.dart';
 import 'package:grainhero_technician_app/models/grain_batch_model.dart';
 import 'package:grainhero_technician_app/services/grain_batch_service.dart';
-import 'package:grainhero_technician_app/widgets/error_widget.dart';
-import 'package:grainhero_technician_app/widgets/empty_state_widget.dart';
-import 'package:grainhero_technician_app/widgets/status_badge.dart';
+import 'package:grainhero_technician_app/widgets/common/error_widget.dart';
+import 'package:grainhero_technician_app/widgets/common/empty_state_widget.dart';
+import 'package:grainhero_technician_app/widgets/common/status_badge.dart';
 import 'grain_batch_detail_screen.dart';
 
 class GrainBatchesScreen extends StatefulWidget {

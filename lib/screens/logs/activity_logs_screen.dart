@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import '../../models/activity_log_model.dart';
 import '../../services/activity_log_service.dart';
 import '../../config/app_theme.dart';
-import '../../widgets/error_widget.dart';
-import '../../widgets/empty_state_widget.dart';
+import '../../widgets/common/error_widget.dart';
+import '../../widgets/common/empty_state_widget.dart';
 
 class ActivityLogsScreen extends StatefulWidget {
   const ActivityLogsScreen({super.key});

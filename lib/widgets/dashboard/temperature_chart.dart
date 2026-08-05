@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import '../config/app_theme.dart';
+import '../../config/app_theme.dart';
 
 /// A modern line chart widget for displaying temperature and humidity history
 /// Supports multiple data series with customizable colors and legends

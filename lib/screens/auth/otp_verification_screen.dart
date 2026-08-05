@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../services/auth_service.dart';
 import '../../utils/validators.dart';
-import '../../widgets/custom_button.dart';
+import '../../widgets/common/custom_button.dart';
 import '../../config/app_theme.dart';
 import '../main/main_screen.dart';
 

@@ -3,18 +3,22 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:grainhero_technician_app/config/app_theme.dart';
+import 'package:grainhero_technician_app/config/grainhero_colors.dart';
 import 'package:grainhero_technician_app/services/user_service.dart';
 import 'package:grainhero_technician_app/services/auth_service.dart';
 import 'package:grainhero_technician_app/models/user_model.dart';
-import 'package:grainhero_technician_app/widgets/error_widget.dart';
+import 'package:grainhero_technician_app/widgets/common/error_widget.dart';
 import 'package:grainhero_technician_app/services/grain_batch_service.dart';
 import 'package:grainhero_technician_app/services/silo_service.dart';
-import 'package:grainhero_technician_app/models/silo_model.dart';
 import 'package:grainhero_technician_app/services/sensor_service.dart';
 import '../qr_scanner/qr_scanner_screen.dart';
 import '../alerts/alerts_screen.dart';
 import '../grain_batches/grain_batch_detail_screen.dart';
 import 'package:grainhero_technician_app/services/alert_service.dart';
+import 'widgets/dashboard_header.dart';
+import 'widgets/environment_section.dart';
+import 'widgets/active_alerts.dart';
+import 'widgets/dashboard_card.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -215,47 +219,81 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return List<Map<String, dynamic>>.from(dashboardData!['recentBatches'] as List);
   }
 
+
   // ---------- BUILD ----------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: GrainHeroColors.pageBackground,
       body: loading
           ? const Center(
-              child: CircularProgressIndicator(color: AppTheme.primaryColor),
+              child: CircularProgressIndicator(color: GrainHeroColors.primary),
             )
           : error != null
               ? AppErrorWidget(message: error!, onRetry: _fetchDashboard)
               : RefreshIndicator(
                   onRefresh: _fetchDashboard,
-                  color: AppTheme.primaryColor,
-                  backgroundColor: AppTheme.surfaceColor,
+                  color: GrainHeroColors.primary,
+                  backgroundColor: GrainHeroColors.surface,
                   child: SingleChildScrollView(
-                    physics: const AlwaysScrollableScrollPhysics(),
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
+                    ),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildHeader(),
+                        // =====================================================
+                        // HEADER
+                        // =====================================================
+                        DashboardHeader(
+                          techName: _techName,
+                          alertsCount: _alerts.length,
+                          onQrPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const QrScannerScreen()),
+                          ),
+                          onAlertsPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const AlertsScreen()),
+                          ).then((_) => _fetchDashboard()),
+                          silosCount: _realSiloCount,
+                          batchesCount: _realBatchCount,
+                          sensorsCount: _sensorSnapshots.length,
+                        ),
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          padding: const EdgeInsets.fromLTRB(16, 24, 16, 32),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const SizedBox(height: 20),
-                              _buildQuickStats(),
-                              const SizedBox(height: 24),
-                              _buildSilosEnvironment(),
-                              const SizedBox(height: 24),
-                              if (_recentBatches.isNotEmpty) ...[
-                                _buildRecentBatchesSection(),
-                                const SizedBox(height: 24),
-                              ],
-                              if (_alerts.isNotEmpty) ...[
-                                _buildAlertsSection(),
-                                const SizedBox(height: 24),
-                              ],
-                              _buildQuickActions(),
-                              const SizedBox(height: 100), // Bottom nav spacing
+                              // =====================================================
+                              // SILO ENVIRONMENTS
+                              // =====================================================
+                              SiloEnvironmentSection(
+                                realSiloCount: _realSiloCount,
+                                silos: _silos,
+                                onAddNew: () {},
+                              ),
+                              
+                              const SizedBox(height: 28),
+                              
+                              // =====================================================
+                              // ACTIVE ALERTS
+                              // =====================================================
+                              ActiveAlertsSection(
+                                alerts: _alerts,
+                                onAcknowledge: _acknowledgeAlert,
+                              ),
+
+                              const SizedBox(height: 28),
+
+                              // =====================================================
+                              // RECENT BATCHES
+                              // =====================================================
+                              RecentBatchesSection(
+                                recentBatches: _recentBatches,
+                                onViewAll: () {},
+                              ),
+                              
+                              const SizedBox(height: 100),
                             ],
                           ),
                         ),
@@ -263,700 +301,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     ),
                   ),
                 ),
-    );
-  }
-
-  // ---------- HEADER ----------
-  Widget _buildHeader() {
-    return Container(
-      padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + 12,
-        left: 20,
-        right: 20,
-        bottom: 16,
-      ),
-      decoration: const BoxDecoration(
-        color: AppTheme.surfaceColor,
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(24),
-          bottomRight: Radius.circular(24),
-        ),
-      ),
-      child: Row(
-        children: [
-          // Avatar
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              gradient: AppTheme.goldGradient,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Center(
-              child: Text(
-                _techName.isNotEmpty ? _techName[0].toUpperCase() : 'T',
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          // Name + subtitle
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _techName,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                const Text(
-                  'Technical Panel',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          // QR button
-          _buildHeaderIcon(
-            Icons.qr_code_scanner_rounded,
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const QrScannerScreen()),
-            ),
-          ),
-          const SizedBox(width: 8),
-          // Notification bell
-          _buildHeaderIcon(
-            Icons.notifications_outlined,
-            badge: _alerts.length,
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const AlertsScreen()),
-            ).then((_) => _fetchDashboard()),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeaderIcon(IconData icon, {VoidCallback? onTap, int badge = 0}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: AppTheme.cardColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppTheme.borderColor, width: 0.5),
-        ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Icon(icon, size: 20, color: AppTheme.textSecondary),
-            if (badge > 0)
-              Positioned(
-                top: 6,
-                right: 6,
-                child: Container(
-                  width: 14,
-                  height: 14,
-                  decoration: const BoxDecoration(
-                    color: AppTheme.errorColor,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      badge > 9 ? '9+' : '$badge',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 8,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ---------- QUICK STATS ----------
-  Widget _buildQuickStats() {
-    final siloCount = _realSiloCount;
-    final alertCount = _alerts.length;
-    final batchCount = _realBatchCount;
-    final sensorCount = _sensorSnapshots.length;
-
-    return Row(
-      children: [
-        _buildStatPill(Icons.domain_rounded, '$siloCount', 'Silos', AppTheme.primaryColor),
-        const SizedBox(width: 10),
-        _buildStatPill(Icons.warning_amber_rounded, '$alertCount', 'Alerts', AppTheme.warningColor),
-        const SizedBox(width: 10),
-        _buildStatPill(Icons.inventory_2_rounded, '$batchCount', 'Batches', AppTheme.humidityBlue),
-        const SizedBox(width: 10),
-        _buildStatPill(Icons.sensors_rounded, '$sensorCount', 'Sensors', AppTheme.co2Purple),
-      ],
-    );
-  }
-
-  Widget _buildStatPill(IconData icon, String value, String label, Color color) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 6),
-        decoration: BoxDecoration(
-          color: AppTheme.cardColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppTheme.borderColor, width: 0.5),
-        ),
-        child: Column(
-          children: [
-            Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Icon(icon, size: 18, color: color),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 10,
-                color: AppTheme.textSecondary,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ---------- SILOS ENVIRONMENT CAROUSEL ----------
-  Widget _buildSilosEnvironment() {
-    if (_silos.isEmpty) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSectionTitle('Silo Environments'),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppTheme.cardColor,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppTheme.borderColor, width: 0.5),
-            ),
-            child: const Center(
-              child: Text(
-                'No silos available',
-                style: TextStyle(color: AppTheme.textSecondary),
-              ),
-            ),
-          ),
-        ],
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildSectionTitle('Silo Environments'),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 140, // Height for the cards
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: _silos.length,
-            itemBuilder: (context, index) {
-              final silo = _silos[index] as SiloModel;
-              return _buildSiloEnvironmentCard(silo);
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildSiloEnvironmentCard(SiloModel silo) {
-    final temp = silo.temperature;
-    final hum = silo.humidity;
-    final tvoc = silo.tvoc;
-
-    return Container(
-      width: 280, // Fixed width for each card
-      margin: const EdgeInsets.only(right: 16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.borderColor, width: 0.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                silo.name,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: AppTheme.textPrimary,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: silo.status.toLowerCase() == 'active'
-                      ? AppTheme.successColor.withValues(alpha: 0.15)
-                      : AppTheme.textSecondary.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  silo.status.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                    color: silo.status.toLowerCase() == 'active'
-                        ? AppTheme.successColor
-                        : AppTheme.textSecondary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildMiniMetric(Icons.thermostat, '${temp.toStringAsFixed(1)}°C', AppTheme.temperatureOrange),
-              _buildMiniMetric(Icons.water_drop, '${hum.toStringAsFixed(1)}%', AppTheme.humidityBlue),
-              _buildMiniMetric(Icons.air, '${tvoc.toStringAsFixed(0)}ppb', AppTheme.co2Purple),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMiniMetric(IconData icon, String value, Color color) {
-    return Column(
-      children: [
-        Icon(icon, size: 20, color: color),
-        const SizedBox(height: 6),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: AppTheme.textPrimary,
-          ),
-        ),
-      ],
-    );
-  }
-
-
-  // ---------- RECENT BATCHES ----------
-  Widget _buildRecentBatchesSection() {
-    final batches = _recentBatches;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildSectionTitle('Recent Batches'),
-        const SizedBox(height: 12),
-        ...batches.take(3).map((batch) => _buildBatchCard(batch)),
-      ],
-    );
-  }
-
-  Widget _buildBatchCard(Map<String, dynamic> batch) {
-    final risk = (batch['risk'] ?? 'low').toString().toLowerCase();
-    final riskColor = AppTheme.getRiskColor(risk);
-
-    return GestureDetector(
-      onTap: () {
-        final id = batch['id'] ?? batch['_id'];
-        if (id != null) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => GrainBatchDetailScreen(batchId: id)),
-          );
-        }
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppTheme.cardColor,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppTheme.borderColor, width: 0.5),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(
-                Icons.inventory_2_rounded,
-                color: AppTheme.primaryColor,
-                size: 20,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    batch['grain'] ?? 'Unknown',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    '${batch['quantity']} kg • ${batch['silo'] ?? ''}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: riskColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: riskColor.withValues(alpha: 0.3), width: 1),
-              ),
-              child: Text(
-                risk.toUpperCase(),
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: riskColor,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ---------- ALERTS SECTION ----------
-  Widget _buildAlertsSection() {
-    final alerts = _alerts;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _buildSectionTitle('Active Alerts'),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppTheme.errorColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                '${alerts.length}',
-                style: const TextStyle(
-                  color: AppTheme.errorColor,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        // Feature the first alert as a prominent action card
-        if (alerts.isNotEmpty) _buildAlertActionCard(alerts.first),
-        // Show rest as compact cards
-        ...alerts.skip(1).take(2).map((a) => _buildCompactAlertCard(a)),
-      ],
-    );
-  }
-
-  Widget _buildAlertActionCard(Map<String, dynamic> alert) {
-    final severity = (alert['severity'] ?? 'low').toString().toLowerCase();
-    final color = AppTheme.getSeverityColor(severity);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.3), width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(Icons.warning_amber_rounded, color: color, size: 20),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      alert['type'] ?? 'Alert',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: color,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      alert['message'] ?? '',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          // ACKNOWLEDGE button
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton(
-              onPressed: () {
-                final alertId = alert['_id']?.toString();
-                if (alertId != null) {
-                  _acknowledgeAlert(alertId);
-                } else {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const AlertsScreen()),
-                  ).then((_) => _fetchDashboard());
-                }
-              },
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: AppTheme.primaryColor.withValues(alpha: 0.5)),
-                foregroundColor: AppTheme.primaryColor,
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: const Text(
-                'ACKNOWLEDGE',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 1.5,
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCompactAlertCard(Map<String, dynamic> alert) {
-    final severity = (alert['severity'] ?? 'low').toString().toLowerCase();
-    final color = AppTheme.getSeverityColor(severity);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppTheme.cardColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border(left: BorderSide(color: color, width: 3)),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.warning_amber_rounded, color: color, size: 18),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              alert['message'] ?? '',
-              style: const TextStyle(
-                fontSize: 13,
-                color: AppTheme.textPrimary,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              severity.toUpperCase(),
-              style: TextStyle(
-                fontSize: 9,
-                fontWeight: FontWeight.w700,
-                color: color,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ---------- QUICK ACTIONS ----------
-  Widget _buildQuickActions() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildSectionTitle('Quick Actions'),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            _buildActionCard(
-              icon: Icons.qr_code_scanner_rounded,
-              label: 'Scan QR',
-              color: AppTheme.primaryColor,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const QrScannerScreen()),
-              ),
-            ),
-            const SizedBox(width: 10),
-            _buildActionCard(
-              icon: Icons.notifications_active_rounded,
-              label: 'All Alerts',
-              color: AppTheme.warningColor,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AlertsScreen()),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActionCard({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 10),
-          decoration: BoxDecoration(
-            color: AppTheme.cardColor,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppTheme.borderColor, width: 0.5),
-          ),
-          child: Column(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(icon, color: color, size: 22),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: AppTheme.textPrimary,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ---------- COMMON ----------
-  Widget _buildSectionTitle(String title) {
-    return Text(
-      title,
-      style: const TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.w600,
-        color: AppTheme.textPrimary,
-        letterSpacing: 0.3,
-      ),
     );
   }
 }

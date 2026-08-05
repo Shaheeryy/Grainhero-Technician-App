@@ -3,7 +3,7 @@ import '../../config/app_theme.dart';
 import '../../models/silo_model.dart';
 import '../../models/grain_batch_model.dart';
 import '../../services/grain_batch_service.dart';
-import '../../widgets/custom_card.dart';
+import '../../widgets/common/custom_card.dart';
 import '../actuators/actuators_screen.dart';
 import '../sensors/sensors_screen.dart';
 import '../grain_batches/grain_batch_detail_screen.dart';

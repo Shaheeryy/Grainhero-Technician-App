@@ -3,8 +3,8 @@ import 'package:intl/intl.dart';
 import '../../config/app_theme.dart';
 import '../../models/actuator_model.dart';
 import '../../services/actuator_service.dart';
-import '../../widgets/error_widget.dart';
-import '../../widgets/empty_state_widget.dart';
+import '../../widgets/common/error_widget.dart';
+import '../../widgets/common/empty_state_widget.dart';
 
 class ActuatorsScreen extends StatefulWidget {
   const ActuatorsScreen({super.key});
