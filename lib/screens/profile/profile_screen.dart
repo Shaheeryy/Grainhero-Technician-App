@@ -9,6 +9,7 @@ import '../../config/grainhero_colors.dart';
 import '../auth/login_screen.dart';
 import 'change_password_screen.dart';
 import 'about_app_screen.dart';
+import 'edit_profile_modal.dart';
 import '../logs/activity_logs_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -103,159 +104,56 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  void _showEditProfileSheet(BuildContext context, UserModel? currentUser) {
-    final nameController = TextEditingController(text: currentUser?.name ?? '');
-    final phoneController = TextEditingController(text: currentUser?.phone ?? '');
-
-    bool isSaving = false;
-
-    showModalBottomSheet(
+  Future<void> _showEditProfileSheet(BuildContext context, UserModel? currentUser) async {
+    final result = await showEditProfileModal(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setStateSheet) {
-            return Container(
-              decoration: const BoxDecoration(
-                color: GrainHeroColors.surface,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-              ),
-              padding: EdgeInsets.only(
-                left: 24,
-                right: 24,
-                top: 24,
-                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Edit Profile',
-                      style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: GrainHeroColors.bodyText,
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    TextField(
-                      controller: nameController,
-                      style: const TextStyle(color: GrainHeroColors.bodyText),
-                      decoration: InputDecoration(
-                        labelText: 'Full Name',
-                        labelStyle: const TextStyle(color: GrainHeroColors.bodyText),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: GrainHeroColors.primary),
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: phoneController,
-                      style: const TextStyle(color: GrainHeroColors.bodyText),
-                      decoration: InputDecoration(
-                        labelText: 'Phone',
-                        labelStyle: const TextStyle(color: GrainHeroColors.bodyText),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: GrainHeroColors.primary),
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      keyboardType: TextInputType.phone,
-                    ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        onPressed: isSaving
-                            ? null
-                            : () async {
-                                setStateSheet(() {
-                                  isSaving = true;
-                                });
-                                try {
-                                  final updatedUser = await _userService.updateProfile(
-                                    name: nameController.text.trim(),
-                                    phone: phoneController.text.trim(),
-                                  );
-                                  if (mounted) {
-                                    setState(() {
-                                      _userProfile = updatedUser;
-                                    });
-                                  }
-                                  if (context.mounted) {
-                                    Navigator.pop(context);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: const Text('Profile updated'),
-                                        backgroundColor: GrainHeroColors.primary,
-                                        behavior: SnackBarBehavior.floating,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(20),
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                } catch (e) {
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text('Failed: ${e.toString()}'),
-                                        backgroundColor: GrainHeroColors.error,
-                                        behavior: SnackBarBehavior.floating,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(20),
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                } finally {
-                                  setStateSheet(() {
-                                    isSaving = false;
-                                  });
-                                }
-                              },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: GrainHeroColors.primary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(26),
-                          ),
-                        ),
-                        child: isSaving
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Text(
-                                'Save Changes',
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
+      initialName: currentUser?.name ?? '',
+      initialEmail: currentUser?.email ?? '',
     );
+
+    if (result == null || !mounted) return;
+
+    setState(() {
+      _loading = true;
+    });
+
+    try {
+      final updatedUser = await _userService.updateProfile(
+        name: result.name,
+      );
+      if (mounted && context.mounted) {
+        setState(() {
+          _userProfile = updatedUser;
+          _loading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Profile updated successfully'),
+            backgroundColor: GrainHeroColors.primary,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted && context.mounted) {
+        setState(() {
+          _loading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed: ${e.toString()}'),
+            backgroundColor: GrainHeroColors.error,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20),
+            ),
+          ),
+        );
+      }
+    }
   }
 
   void _showLogoutDialog(BuildContext context) {
