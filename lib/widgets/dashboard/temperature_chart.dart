@@ -78,7 +78,7 @@ class TemperatureChart extends StatelessWidget {
                   drawVerticalLine: false,
                   horizontalInterval: 20,
                   getDrawingHorizontalLine: (value) => FlLine(
-                    color: AppTheme.dividerColor.withOpacity(0.5),
+                    color: AppTheme.dividerColor.withValues(alpha: 0.5),
                     strokeWidth: 1,
                   ),
                 ),
@@ -129,8 +129,7 @@ class TemperatureChart extends StatelessWidget {
                 lineBarsData: dataSeries.map((series) => _createLineData(series)).toList(),
                 lineTouchData: LineTouchData(
                   touchTooltipData: LineTouchTooltipData(
-                    getTooltipColor: (spot) => AppTheme.textPrimary.withOpacity(0.9),
-                    tooltipRoundedRadius: 8,
+                    getTooltipColor: (spot) => AppTheme.textPrimary.withValues(alpha: 0.9),
                     getTooltipItems: (touchedSpots) {
                       return touchedSpots.map((spot) {
                         final series = dataSeries[spot.barIndex];
@@ -204,7 +203,7 @@ class TemperatureChart extends StatelessWidget {
       dotData: const FlDotData(show: false),
       belowBarData: BarAreaData(
         show: series.showArea,
-        color: series.color.withOpacity(0.1),
+        color: series.color.withValues(alpha: 0.1),
       ),
     );
   }
@@ -332,7 +331,7 @@ class SparklineChart extends StatelessWidget {
               dotData: const FlDotData(show: false),
               belowBarData: BarAreaData(
                 show: true,
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
               ),
             ),
           ],

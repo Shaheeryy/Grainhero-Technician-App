@@ -25,14 +25,14 @@ class ActivityLogModel {
 
   factory ActivityLogModel.fromJson(Map<String, dynamic> json) {
     return ActivityLogModel(
-      id: json['_id'] ?? '',
+      id: json['id']?.toString() ?? '',
       action: json['action'] ?? 'unknown',
       category: json['category'] ?? 'system',
       entityType: json['entity_type'] ?? '',
       entityRef: json['entity_ref'] ?? '',
       description: json['description'] ?? '',
       severity: json['severity'] ?? 'info',
-      userName: json['user_name'] ?? 'System',
+      userName: json['profiles']?['name'] ?? json['user_name'] ?? 'System',
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'])
           : DateTime.now(),

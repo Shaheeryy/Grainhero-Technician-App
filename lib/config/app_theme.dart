@@ -91,7 +91,7 @@ class AppTheme {
   // ============================================
   static List<BoxShadow> get cardShadow => [
     BoxShadow(
-      color: Colors.black.withOpacity(0.3),
+      color: Colors.black.withValues(alpha: 0.3),
       blurRadius: 8,
       offset: const Offset(0, 2),
     ),
@@ -99,7 +99,7 @@ class AppTheme {
 
   static List<BoxShadow> get elevatedShadow => [
     BoxShadow(
-      color: Colors.black.withOpacity(0.4),
+      color: Colors.black.withValues(alpha: 0.4),
       blurRadius: 16,
       offset: const Offset(0, 4),
     ),
@@ -107,7 +107,7 @@ class AppTheme {
 
   static List<BoxShadow> get goldGlow => [
     BoxShadow(
-      color: primaryColor.withOpacity(0.3),
+      color: primaryColor.withValues(alpha: 0.3),
       blurRadius: 12,
       offset: const Offset(0, 2),
     ),
@@ -158,9 +158,9 @@ class AppTheme {
   );
 
   static BoxDecoration get goldPillDecoration => BoxDecoration(
-    color: primaryColor.withOpacity(0.15),
+    color: primaryColor.withValues(alpha: 0.15),
     borderRadius: BorderRadius.circular(radiusFull),
-    border: Border.all(color: primaryColor.withOpacity(0.3), width: 1),
+    border: Border.all(color: primaryColor.withValues(alpha: 0.3), width: 1),
   );
 
   // ============================================

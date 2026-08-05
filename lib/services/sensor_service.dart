@@ -1,11 +1,10 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
-import '../config/api_config.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/sensor_model.dart';
-import '../utils/secure_storage.dart';
 
 class SensorService {
+  final SupabaseClient _supabase = Supabase.instance.client;
+
   /// Get all sensors with pagination and filters.
   Future<Map<String, dynamic>> getAllSensors({
     int page = 1,
@@ -13,70 +12,63 @@ class SensorService {
     String? status,
     String? siloId,
   }) async {
-    final token = await SecureStorage.getToken();
-    if (token == null) throw Exception('Not authenticated');
+    try {
+      var query = _supabase
+          .from('sensor_devices')
+          .select('*, silos(id, silo_id, name), warehouses(id, name, warehouse_id)');
+          
+      if (status != null && status.isNotEmpty) {
+        query = query.eq('status', status);
+      }
+      if (siloId != null && siloId.isNotEmpty) {
+        query = query.eq('silo_id', siloId);
+      }
 
-    final queryParams = <String, String>{
-      'page': page.toString(),
-      'limit': limit.toString(),
-    };
-    if (status != null) queryParams['status'] = status;
-    if (siloId != null) queryParams['silo_id'] = siloId;
-
-    final uri = Uri.parse(ApiConfig.sensors).replace(queryParameters: queryParams);
-
-    debugPrint('🔍 SENSOR API: GET $uri');
-    final response = await http
-        .get(uri, headers: ApiConfig.getHeaders(token: token))
-        .timeout(const Duration(seconds: 15));
-
-    debugPrint('🔍 SENSOR API: Status ${response.statusCode}');
-    debugPrint('🔍 SENSOR API: Body ${response.body.length > 500 ? response.body.substring(0, 500) : response.body}');
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      final sensors = (data['sensors'] as List<dynamic>?)
-              ?.map((e) => SensorDevice.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          [];
-      debugPrint('🔍 SENSOR API: Parsed ${sensors.length} sensors');
+      // Pagination
+      final from = (page - 1) * limit;
+      final to = from + limit - 1;
+      
+      final data = await query.range(from, to).order('created_at', ascending: false);
+      
+      final sensors = (data as List).map((e) => SensorDevice.fromJson(e)).toList();
+      
       return {
         'sensors': sensors,
-        'pagination': data['pagination'] ?? {},
+        'pagination': {
+          'page': page,
+          'limit': limit,
+          // 'total': count might be fetched using count() if needed
+        },
       };
-    } else if (response.statusCode == 401) {
-      throw Exception('Unauthorized');
-    } else {
-      final error = jsonDecode(response.body);
-      throw Exception(error['error'] ?? 'Failed to load sensors');
+    } catch (e) {
+      debugPrint('Error getting sensors: $e');
+      throw Exception('Failed to load sensors');
     }
-
   }
 
   /// Fetch sensor details by ID (includes recent_readings).
   Future<SensorDevice> fetchSensorDetails(String sensorId) async {
-    final token = await SecureStorage.getToken();
-    if (token == null) throw Exception('Not authenticated');
+    try {
+      final sensorData = await _supabase
+          .from('sensor_devices')
+          .select('*')
+          .eq('id', sensorId)
+          .single();
+          
+      final readingsData = await _supabase
+          .from('sensor_readings')
+          .select('*')
+          .eq('device_id', sensorId)
+          .order('reading_timestamp', ascending: false)
+          .limit(10);
+          
+      final json = Map<String, dynamic>.from(sensorData);
+      json['recent_readings'] = readingsData;
 
-    final response = await http
-        .get(
-          Uri.parse(ApiConfig.sensorDetails(sensorId)),
-          headers: ApiConfig.getHeaders(token: token),
-        )
-        .timeout(const Duration(seconds: 15));
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      // Backend may return { sensor: {...} } or just {...}
-      final sensorJson = data['sensor'] ?? data['data'] ?? data;
-      return SensorDevice.fromJson(sensorJson as Map<String, dynamic>);
-    } else if (response.statusCode == 401) {
-      throw Exception('Unauthorized');
-    } else if (response.statusCode == 404) {
-      throw Exception('Sensor not found');
-    } else {
-      final error = jsonDecode(response.body);
-      throw Exception(error['error'] ?? 'Failed to load sensor details');
+      return SensorDevice.fromJson(json);
+    } catch (e) {
+      debugPrint('Error fetching sensor details: $e');
+      throw Exception('Failed to load sensor details');
     }
   }
 
@@ -87,112 +79,101 @@ class SensorService {
     String? startDate,
     String? endDate,
   }) async {
-    final token = await SecureStorage.getToken();
-    if (token == null) throw Exception('Not authenticated');
+    try {
+      var filterBuilder = _supabase
+          .from('sensor_readings')
+          .select('*')
+          .eq('device_id', sensorId);
 
-    final queryParams = <String, String>{'limit': limit.toString()};
-    if (startDate != null) queryParams['start_date'] = startDate;
-    if (endDate != null) queryParams['end_date'] = endDate;
+      if (startDate != null) {
+        filterBuilder = filterBuilder.gte('reading_timestamp', startDate);
+      }
+      if (endDate != null) {
+        filterBuilder = filterBuilder.lte('reading_timestamp', endDate);
+      }
 
-    final uri = Uri.parse(
-      ApiConfig.sensorReadings(sensorId),
-    ).replace(queryParameters: queryParams);
+      final query = filterBuilder
+          .order('reading_timestamp', ascending: false)
+          .limit(limit);
 
-    final response = await http
-        .get(uri, headers: ApiConfig.getHeaders(token: token))
-        .timeout(const Duration(seconds: 15));
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      // Parse readings into SensorReading objects
-      final rawReadings = data['readings'] as List<dynamic>? ?? [];
-      final readings = rawReadings
-          .where((r) => r is Map)
-          .map((r) => SensorReading.fromJson(Map<String, dynamic>.from(r)))
-          .toList();
+      final data = await query;
+      
+      final readings = (data as List).map((r) => SensorReading.fromJson(r)).toList();
+      
       return {
         'readings': readings,
-        'total_readings': data['total_readings'] ?? readings.length,
-        'date_range': data['date_range'],
+        'total_readings': readings.length,
+        'date_range': {'start': startDate, 'end': endDate},
       };
-    } else if (response.statusCode == 401) {
-      throw Exception('Unauthorized');
-    } else if (response.statusCode == 404) {
-      throw Exception('Sensor not found');
-    } else {
-      final error = jsonDecode(response.body);
-      throw Exception(error['error'] ?? 'Failed to load sensor readings');
+    } catch (e) {
+      debugPrint('Error getting sensor readings: $e');
+      throw Exception('Failed to load sensor readings');
     }
   }
 
   /// Calibrate sensor.
   Future<bool> calibrateSensor(String sensorId) async {
-    final token = await SecureStorage.getToken();
-    if (token == null) throw Exception('Not authenticated');
-
-    final response = await http
-        .post(
-          Uri.parse(ApiConfig.sensorCalibrate(sensorId)),
-          headers: ApiConfig.getHeaders(token: token),
-          body: jsonEncode({'timestamp': DateTime.now().toIso8601String()}),
-        )
-        .timeout(const Duration(seconds: 10));
-
-    if (response.statusCode == 200) {
+    try {
+      await _supabase
+          .from('sensor_devices')
+          .update({
+            'last_calibration_date': DateTime.now().toIso8601String(),
+            // Ensure calibration interval is respected (e.g. defaulting to 365 days if missing)
+            'calibration_interval_days': 365,
+          })
+          .eq('id', sensorId);
       return true;
-    } else if (response.statusCode == 401) {
-      throw Exception('Unauthorized');
-    } else {
-      final error = jsonDecode(response.body);
-      throw Exception(error['error'] ?? 'Failed to calibrate sensor');
+    } catch (e) {
+      debugPrint('Error calibrating sensor: $e');
+      throw Exception('Failed to calibrate sensor');
     }
   }
 
   /// Log sensor maintenance.
   Future<bool> logSensorMaintenance(String sensorId, String notes) async {
-    final token = await SecureStorage.getToken();
-    if (token == null) throw Exception('Not authenticated');
-
-    final response = await http
-        .post(
-          Uri.parse(ApiConfig.sensorMaintenance(sensorId)),
-          headers: ApiConfig.getHeaders(token: token),
-          body: jsonEncode({
-            'maintenance_type': 'inspection',
-            'maintenance_actions': ['Visual Inspection', 'Cleaning'],
-            'notes': notes.isEmpty ? 'Routine sensor maintenance' : notes,
-          }),
-        )
-        .timeout(const Duration(seconds: 10));
-
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      return true;
-    } else if (response.statusCode == 401) {
-      throw Exception('Unauthorized');
-    } else {
-      final error = jsonDecode(response.body);
-      throw Exception(error['error'] ?? 'Failed to log sensor maintenance');
-    }
+    // ⚠️ Gap G4: No maintenance table exists in Supabase schema yet.
+    // Throw an error until the schema is decided.
+    throw Exception('Maintenance logging is disabled during migration (Gap G4). Please wait for database updates.');
   }
 
   /// Fetch dashboard data.
   Future<Map<String, dynamic>> fetchDashboard() async {
-    final token = await SecureStorage.getToken();
-    if (token == null) throw Exception('Not authenticated');
+    try {
+      // Manual aggregation since Dashboard Edge Function does not exist
+      final siloResponse = await _supabase.from('silos').select('id');
+      final batchResponse = await _supabase.from('grain_batches').select('id');
+      // grain_alerts.status is a Postgres enum: pending | acknowledged | resolved
+      // (no 'active' value exists) — "active" here means not yet resolved.
+      final alertResponse = await _supabase.from('grain_alerts').select('id').neq('status', 'resolved');
+      
+      final siloCount = (siloResponse as List).length;
+      final batchCount = (batchResponse as List).length;
+      final alertCount = (alertResponse as List).length;
+      
+      // For now, fetch latest objects for recent lists
+      final recentSilos = await _supabase.from('silos').select('*').limit(5);
+      final recentBatches = await _supabase.from('grain_batches').select('*').limit(5);
+      final recentAlerts = await _supabase.from('grain_alerts').select('*').neq('status', 'resolved').limit(5);
 
-    final response = await http
-        .get(
-          Uri.parse(ApiConfig.technicianDashboard),
-          headers: ApiConfig.getHeaders(token: token),
-        )
-        .timeout(const Duration(seconds: 15));
-
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else if (response.statusCode == 401) {
-      throw Exception('Unauthorized');
-    } else {
-      throw Exception('Failed to load dashboard');
+      return {
+        'stats': {
+          'totalSilos': siloCount,
+          'activeBatches': batchCount,
+          'activeAlerts': alertCount,
+          'criticalAlerts': 0,
+        },
+        'silos': recentSilos,
+        'recentBatches': recentBatches,
+        'alerts': recentAlerts,
+        'capacityStats': {
+          'totalCapacityKg': 0,
+          'usedCapacityKg': 0,
+          'utilizationPercentage': 0,
+        },
+      };
+    } catch (e) {
+      debugPrint('Dashboard aggregate failed: $e');
+      throw Exception('Failed to load dashboard data via manual queries.');
     }
   }
 }

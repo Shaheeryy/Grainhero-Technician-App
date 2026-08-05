@@ -112,7 +112,7 @@ class _GrainBatchesScreenState extends State<GrainBatchesScreen> {
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: (_selectedStatus != null || _selectedGrainType != null)
-                    ? AppTheme.primaryColor.withOpacity(0.1)
+                    ? AppTheme.primaryColor.withValues(alpha: 0.1)
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -266,7 +266,7 @@ class _GrainBatchesScreenState extends State<GrainBatchesScreen> {
       ),
       deleteIcon: const Icon(Icons.close, size: 16),
       onDeleted: onDelete,
-      backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+      backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
       labelStyle: const TextStyle(color: AppTheme.primaryColor),
       deleteIconColor: AppTheme.primaryColor,
       side: BorderSide.none,
@@ -300,7 +300,7 @@ class _GrainBatchesScreenState extends State<GrainBatchesScreen> {
                     Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withOpacity(0.1),
+                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                       ),
                       child: const Icon(
@@ -380,7 +380,7 @@ class _GrainBatchesScreenState extends State<GrainBatchesScreen> {
                         ),
                         decoration: BoxDecoration(
                           color: _getQualityColor(batch.qualityScore!)
-                              .withOpacity(0.1),
+                              .withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Row(
@@ -586,7 +586,7 @@ class _GrainBatchesScreenState extends State<GrainBatchesScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
           color: isSelected
-              ? AppTheme.primaryColor.withOpacity(0.1)
+              ? AppTheme.primaryColor.withValues(alpha: 0.1)
               : AppTheme.backgroundColor,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(

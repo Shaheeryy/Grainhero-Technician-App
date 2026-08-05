@@ -6,7 +6,7 @@ import '../../widgets/common/error_widget.dart';
 import '../../widgets/common/empty_state_widget.dart';
 
 class ActivityLogsScreen extends StatefulWidget {
-  const ActivityLogsScreen({Key? key}) : super(key: key);
+  const ActivityLogsScreen({super.key});
 
   @override
   State<ActivityLogsScreen> createState() => _ActivityLogsScreenState();
@@ -190,7 +190,7 @@ class _ActivityLogsScreenState extends State<ActivityLogsScreen> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: _getSeverityColor(log.severity).withOpacity(0.1),
+              color: _getSeverityColor(log.severity).withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(

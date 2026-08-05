@@ -15,9 +15,9 @@ class SiloCard extends StatelessWidget {
     final isEmpty = fillPercent < 0.1;
     final statusColor = silo.status.toLowerCase() == 'active' ? AuthTheme.primaryGreen : const Color(0xFFFF5C5C);
     
-    final temp = silo.temperature ?? 0;
-    final hum = silo.humidity ?? 0;
-    final tvoc = silo.tvoc ?? 0;
+    final temp = silo.temperature;
+    final hum = silo.humidity;
+    final tvoc = silo.tvoc;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),

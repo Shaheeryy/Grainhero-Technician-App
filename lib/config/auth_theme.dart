@@ -112,7 +112,7 @@ class AuthTheme {
     return ElevatedButton.styleFrom(
       backgroundColor: primaryGreen,
       foregroundColor: Colors.white,
-      disabledBackgroundColor: primaryGreen.withOpacity(0.6),
+      disabledBackgroundColor: primaryGreen.withValues(alpha: 0.6),
       disabledForegroundColor: Colors.white70,
 
       elevation: 0,

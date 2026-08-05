@@ -61,7 +61,7 @@
 //                     Container(
 //                       padding: const EdgeInsets.all(10),
 //                       decoration: BoxDecoration(
-//                         color: accentColor.withOpacity(0.1),
+//                         color: accentColor.withValues(alpha: 0.1),
 //                         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
 //                       ),
 //                       child: Icon(
@@ -112,9 +112,9 @@
 //                         value: isOn,
 //                         onChanged: status != 'offline' && status != 'error' ? onToggle : null,
 //                         activeColor: AppTheme.successColor,
-//                         activeTrackColor: AppTheme.successColor.withOpacity(0.4),
+//                         activeTrackColor: AppTheme.successColor.withValues(alpha: 0.4),
 //                         inactiveThumbColor: AppTheme.textSecondary,
-//                         inactiveTrackColor: AppTheme.textSecondary.withOpacity(0.3),
+//                         inactiveTrackColor: AppTheme.textSecondary.withValues(alpha: 0.3),
 //                       ),
 //                   ],
 //                 ),
@@ -269,7 +269,7 @@
 //                 Container(
 //                   padding: const EdgeInsets.all(12),
 //                   decoration: BoxDecoration(
-//                     color: accentColor.withOpacity(0.1),
+//                     color: accentColor.withValues(alpha: 0.1),
 //                     shape: BoxShape.circle,
 //                   ),
 //                   child: Icon(

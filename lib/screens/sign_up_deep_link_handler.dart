@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:grainhero_technician_app/screens/auth/sign_up_screen.dart';
+import 'package:grainhero_technician_app/screens/auth/accept_invite_screen.dart';
 import 'package:app_links/app_links.dart';
 
 class SignUpDeepLinkHandler extends StatefulWidget {
@@ -38,7 +38,7 @@ class _SignUpDeepLinkHandlerState extends State<SignUpDeepLinkHandler> {
   @override
   Widget build(BuildContext context) {
     if (_deepLinkEmail != null) {
-      return SignUpScreen(prefilledEmail: _deepLinkEmail);
+      return AcceptInviteScreen(prefilledEmail: _deepLinkEmail);
     }
     return widget.fallback;
   }

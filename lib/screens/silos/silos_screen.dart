@@ -1,11 +1,8 @@
 import 'package:flutter/material.dart';
-import '../../config/app_theme.dart';
 import '../../config/auth_theme.dart';
 import '../../widgets/silos/silos_widgets.dart';
 import '../../models/silo_model.dart';
 import '../../services/silo_service.dart';
-import '../../widgets/common/custom_card.dart';
-import 'silo_detail_screen.dart';
 import 'widgets/silo_card.dart';
 
 class SilosScreen extends StatefulWidget {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:grainhero_technician_app/config/auth_theme.dart';
 import 'package:grainhero_technician_app/screens/auth/login_screen.dart';
-import 'package:grainhero_technician_app/screens/auth/sign_up_screen.dart';
+import 'package:grainhero_technician_app/screens/auth/accept_invite_screen.dart';
 import 'package:grainhero_technician_app/widgets/common/auth_button.dart';
 
 class WelcomeScreen extends StatelessWidget {
@@ -39,7 +39,7 @@ class WelcomeScreen extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(24),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.04),
+                                      color: Colors.black.withValues(alpha: 0.04),
                                       blurRadius: 30,
                                       offset: const Offset(0, 10),
                                     ),
@@ -77,7 +77,7 @@ class WelcomeScreen extends StatelessWidget {
                               icon: Icons.person_add_alt_1_rounded,
                               onPressed: () {
                                 Navigator.of(context).push(
-                                  MaterialPageRoute(builder: (_) => const SignUpScreen()),
+                                  MaterialPageRoute(builder: (_) => const AcceptInviteScreen()),
                                 );
                               },
                             ),

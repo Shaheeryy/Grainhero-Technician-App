@@ -87,8 +87,8 @@ class _ActuatorsScreenState extends State<ActuatorsScreen> {
             ),
           ),
         );
-        // We do NOT call _loadActuators() here because the backend sends commands via MQTT
-        // and doesn't immediately update MongoDB. We rely on the optimistic update above.
+        // Command inserted into actuator_commands table. Rely on the optimistic update above
+        // since the physical actuator state is updated asynchronously.
       }
     } catch (e) {
       // Revert optimistic update
@@ -169,7 +169,7 @@ class _ActuatorsScreenState extends State<ActuatorsScreen> {
             padding: EdgeInsets.only(bottom: AppTheme.spacingM, top: index > 0 ? AppTheme.spacingXL : 0),
             child: Row(children: [
               Container(padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: AppTheme.primaryColor.withOpacity(0.1), borderRadius: BorderRadius.circular(AppTheme.radiusSmall)),
+                decoration: BoxDecoration(color: AppTheme.primaryColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppTheme.radiusSmall)),
                 child: const Icon(Icons.domain, size: 18, color: AppTheme.primaryColor)),
               const SizedBox(width: AppTheme.spacingM),
               Expanded(child: Text(silo, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.textPrimary))),
@@ -206,7 +206,7 @@ class _ActuatorsScreenState extends State<ActuatorsScreen> {
           // Header: icon, name, actuator_id, toggle
           Row(children: [
             Container(padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(color: accentColor.withOpacity(0.1), borderRadius: BorderRadius.circular(AppTheme.radiusMedium)),
+              decoration: BoxDecoration(color: accentColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppTheme.radiusMedium)),
               child: Icon(a.typeIcon, size: 24, color: accentColor)),
             const SizedBox(width: AppTheme.spacingM),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -219,8 +219,8 @@ class _ActuatorsScreenState extends State<ActuatorsScreen> {
             else
               Switch(value: a.isOn,
                 onChanged: a.status != 'offline' && a.status != 'error' && a.isEnabled ? (v) => _toggleActuator(a) : null,
-                activeColor: AppTheme.successColor, activeTrackColor: AppTheme.successColor.withOpacity(0.4),
-                inactiveThumbColor: AppTheme.textSecondary, inactiveTrackColor: AppTheme.textSecondary.withOpacity(0.3)),
+                activeThumbColor: AppTheme.successColor, activeTrackColor: AppTheme.successColor.withValues(alpha: 0.4),
+                inactiveThumbColor: AppTheme.textSecondary, inactiveTrackColor: AppTheme.textSecondary.withValues(alpha: 0.3)),
           ]),
 
           const SizedBox(height: AppTheme.spacingS),
@@ -278,8 +278,8 @@ class _ActuatorsScreenState extends State<ActuatorsScreen> {
   Widget _modeBadge(String label, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withOpacity(0.3), width: 0.5)),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 0.5)),
       child: Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: color)),
     );
   }
@@ -323,96 +323,11 @@ class _ActuatorsScreenState extends State<ActuatorsScreen> {
             if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: ${e.toString().replaceAll('Exception: ', '')}'), backgroundColor: AppTheme.errorColor, behavior: SnackBarBehavior.floating));
           }
         },
-        onMaintenance: () { Navigator.pop(ctx); _showMaintenanceDialog(actuator); },
       ),
     );
   }
 
-  void _showMaintenanceDialog(ActuatorModel actuator) {
-    final notesCtrl = TextEditingController();
-    String selectedType = 'filter_replacement';
 
-    showDialog(context: context, builder: (ctx) => StatefulBuilder(builder: (ctx, setDialogState) => AlertDialog(
-      backgroundColor: AppTheme.surfaceColor,
-      title: Text('Maintenance: ${actuator.name}', style: const TextStyle(color: AppTheme.textPrimary, fontSize: 16)),
-      content: Column(mainAxisSize: MainAxisSize.min, children: [
-        DropdownButtonFormField<String>(
-          value: selectedType, dropdownColor: AppTheme.cardColor,
-          decoration: const InputDecoration(labelText: 'Type', filled: true, fillColor: AppTheme.backgroundColor),
-          items: const [
-            DropdownMenuItem(value: 'filter_replacement', child: Text('Filter Replacement')),
-            DropdownMenuItem(value: 'lubrication', child: Text('Lubrication')),
-            DropdownMenuItem(value: 'inspection', child: Text('Inspection')),
-            DropdownMenuItem(value: 'repair', child: Text('Repair')),
-            DropdownMenuItem(value: 'cleaning', child: Text('Cleaning')),
-            DropdownMenuItem(value: 'other', child: Text('Other')),
-          ],
-          onChanged: (v) => setDialogState(() => selectedType = v!),
-        ),
-        const SizedBox(height: 12),
-        TextField(controller: notesCtrl, maxLines: 3, style: const TextStyle(color: AppTheme.textPrimary),
-          decoration: InputDecoration(hintText: 'Notes...', hintStyle: const TextStyle(color: AppTheme.textHint),
-            filled: true, fillColor: AppTheme.backgroundColor, border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none))),
-      ]),
-      actions: [
-        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-        ElevatedButton(
-          onPressed: () async {
-            if (notesCtrl.text.trim().isEmpty) return;
-            Navigator.pop(ctx);
-            try {
-              await ActuatorService.logMaintenance(actuator.id, maintenanceType: selectedType, notes: notesCtrl.text.trim());
-              if (mounted) {
-                // Professional Success UI
-                showDialog(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    backgroundColor: AppTheme.surfaceColor,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.check_circle, color: AppTheme.successColor, size: 60),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'Maintenance Logged',
-                          style: TextStyle(color: AppTheme.textPrimary, fontSize: 20, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 8),
-                        const Text(
-                          'The maintenance record has been saved and the farm administrator has been notified.',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
-                        ),
-                        const SizedBox(height: 24),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: () => Navigator.pop(ctx),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppTheme.primaryColor,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                            ),
-                            child: const Text('Done', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-                          ),
-                        )
-                      ],
-                    ),
-                  ),
-                );
-                _loadActuators();
-              }
-            } catch (e) {
-              if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: ${e.toString().replaceAll('Exception: ', '')}'), backgroundColor: AppTheme.errorColor, behavior: SnackBarBehavior.floating));
-            }
-          },
-          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
-          child: const Text('Submit', style: TextStyle(color: Colors.black)),
-        ),
-      ],
-    )));
-  }
 }
 
 // ============================================
@@ -422,9 +337,8 @@ class _ActuatorDetailSheet extends StatefulWidget {
   final ActuatorModel actuator;
   final VoidCallback onToggle;
   final ValueChanged<int> onPowerChanged;
-  final VoidCallback onMaintenance;
 
-  const _ActuatorDetailSheet({required this.actuator, required this.onToggle, required this.onPowerChanged, required this.onMaintenance});
+  const _ActuatorDetailSheet({required this.actuator, required this.onToggle, required this.onPowerChanged});
 
   @override
   State<_ActuatorDetailSheet> createState() => _ActuatorDetailSheetState();
@@ -466,7 +380,7 @@ class _ActuatorDetailSheetState extends State<_ActuatorDetailSheet> {
           // Header
           Row(children: [
             Container(padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(color: accentColor.withOpacity(0.1), borderRadius: BorderRadius.circular(AppTheme.radiusMedium)),
+              decoration: BoxDecoration(color: accentColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(AppTheme.radiusMedium)),
               child: Icon(a.typeIcon, size: 32, color: accentColor)),
             const SizedBox(width: AppTheme.spacingL),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -526,7 +440,7 @@ class _ActuatorDetailSheetState extends State<_ActuatorDetailSheet> {
           _row('Human Requested', a.humanRequestedFan ? 'Yes' : 'No'),
           Container(
             margin: const EdgeInsets.only(top: 8), padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(color: AppTheme.warningColor.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+            decoration: BoxDecoration(color: AppTheme.warningColor.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(8)),
             child: Row(children: [
               Icon(Icons.info_outline, size: 14, color: AppTheme.warningColor),
               const SizedBox(width: 6),
@@ -557,15 +471,6 @@ class _ActuatorDetailSheetState extends State<_ActuatorDetailSheet> {
           // Safety Limits
           _row('Max Runtime', '${a.safetyLimits.maxRuntimeHours} hrs'),
           _row('Cooldown', '${a.safetyLimits.cooldownPeriodMinutes} min'),
-
-          const SizedBox(height: AppTheme.spacingXL),
-
-          // Maintenance Button
-          SizedBox(width: double.infinity, child: OutlinedButton.icon(
-            icon: const Icon(Icons.build_circle_outlined), label: const Text('Log Maintenance'),
-            onPressed: widget.onMaintenance,
-            style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 16), side: const BorderSide(color: AppTheme.primaryColor)),
-          )),
 
           SizedBox(height: MediaQuery.of(context).padding.bottom + 16),
         ]),

@@ -2,10 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:http/http.dart' as http;
-import '../../config/api_config.dart';
 import '../../config/app_theme.dart';
-import '../../utils/secure_storage.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../grain_batches/grain_batch_detail_screen.dart';
 import '../sensors/sensor_detail_screen.dart';
 
@@ -98,112 +96,53 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
 
   Future<Map<String, dynamic>?> _lookupCode(String code) async {
     try {
-      final token = await SecureStorage.getToken();
-      if (token == null) {
-        throw Exception('Not authenticated');
+      final supabase = Supabase.instance.client;
+
+      // Try grain batch lookup by qr_code, batch_id, or id
+      try {
+        final batch = await supabase
+            .from('grain_batches')
+            .select('*, silos(id, name, silo_id)')
+            .or('qr_code.eq.$code,batch_id.eq.$code,id.eq.$code')
+            .limit(1)
+            .maybeSingle();
+            
+        if (batch != null) {
+          return {
+            'type': 'batch',
+            'data': batch,
+          };
+        }
+      } catch (e) {
+        debugPrint('Batch lookup failed: $e');
       }
 
-      final response = await http.get(
-        Uri.parse(ApiConfig.lookupByQr(code)),
-        headers: ApiConfig.getHeaders(token: token),
-      ).timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else if (response.statusCode == 404) {
-        // Try alternative lookup methods
-        return await _fallbackLookup(code);
+      // Try sensor lookup by device_id or id
+      try {
+        final sensor = await supabase
+            .from('sensor_devices')
+            .select('*')
+            .or('device_id.eq.$code,id.eq.$code')
+            .limit(1)
+            .maybeSingle();
+            
+        if (sensor != null) {
+          return {
+            'type': 'sensor',
+            'data': sensor,
+          };
+        }
+      } catch (e) {
+        debugPrint('Sensor lookup failed: $e');
       }
+
       return null;
     } catch (e) {
       debugPrint('Lookup error: $e');
-      // Try fallback
-      return await _fallbackLookup(code);
+      throw Exception('Failed to lookup code: $e');
     }
   }
 
-  Future<Map<String, dynamic>?> _fallbackLookup(String code) async {
-    // Try to determine type from code format and lookup accordingly
-    try {
-      final token = await SecureStorage.getToken();
-      if (token == null) return null;
-
-      // Try grain batch lookup
-      final batchResponse = await http.get(
-        Uri.parse('${ApiConfig.grainBatches}/$code'),
-        headers: ApiConfig.getHeaders(token: token),
-      ).timeout(const Duration(seconds: 5));
-
-      if (batchResponse.statusCode == 200) {
-        final data = jsonDecode(batchResponse.body);
-        return {
-          'type': 'batch',
-          'data': data['batch'] ?? data,
-        };
-      }
-
-      // Try sensor lookup
-      final sensorResponse = await http.get(
-        Uri.parse('${ApiConfig.sensors}/$code'),
-        headers: ApiConfig.getHeaders(token: token),
-      ).timeout(const Duration(seconds: 5));
-
-      if (sensorResponse.statusCode == 200) {
-        final data = jsonDecode(sensorResponse.body);
-        return {
-          'type': 'sensor',
-          'data': data['sensor'] ?? data,
-        };
-      }
-
-      return null;
-    } catch (e) {
-      debugPrint('Fallback lookup failed: $e');
-      
-      // Return mock data for demo
-      return _getMockResult(code);
-    }
-  }
-
-  Map<String, dynamic>? _getMockResult(String code) {
-    // Demo data for testing
-    if (code.toLowerCase().contains('batch') || code.startsWith('B')) {
-      return {
-        'type': 'batch',
-        'data': {
-          'id': code,
-          'batchId': code,
-          'grainType': 'Wheat',
-          'quantity': 500,
-          'status': 'stored',
-          'qualityScore': 92,
-        },
-      };
-    } else if (code.toLowerCase().contains('sensor') || code.startsWith('S')) {
-      return {
-        'type': 'sensor',
-        'data': {
-          'id': code,
-          'name': 'Sensor $code',
-          'type': 'temperature_humidity',
-          'status': 'active',
-          'temperature': 24.5,
-          'humidity': 65.0,
-        },
-      };
-    }
-    
-    // Default to batch for unknown codes
-    return {
-      'type': 'batch',
-      'data': {
-        'id': code,
-        'batchId': code,
-        'grainType': 'Unknown',
-        'status': 'stored',
-      },
-    };
-  }
 
   void _navigateToDetail(Map<String, dynamic> result) {
     final type = result['type'] as String?;
@@ -221,7 +160,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
         context,
         MaterialPageRoute(
           builder: (_) => GrainBatchDetailScreen(
-            batchId: data['id']?.toString() ?? data['_id']?.toString() ?? '',
+            batchId: data['id']?.toString() ?? '',
           ),
         ),
       );
@@ -230,7 +169,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
         context,
         MaterialPageRoute(
           builder: (_) => SensorDetailScreen(
-            sensorId: data['id']?.toString() ?? data['_id']?.toString() ?? '',
+            sensorId: data['id']?.toString() ?? '',
           ),
         ),
       );
@@ -490,7 +429,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
           children: [
             // Dim overlay
             Container(
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.black.withValues(alpha: 0.5),
             ),
 
             // Clear center cutout
@@ -501,7 +440,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
                 decoration: BoxDecoration(
                   color: Colors.transparent,
                   border: Border.all(
-                    color: AppTheme.primaryColor.withOpacity(0.8),
+                    color: AppTheme.primaryColor.withValues(alpha: 0.8),
                     width: 2,
                   ),
                   borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
@@ -533,7 +472,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
               child: Text(
                 'Position QR code within the frame',
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.8),
+                  color: Colors.white.withValues(alpha: 0.8),
                   fontSize: 14,
                 ),
                 textAlign: TextAlign.center,

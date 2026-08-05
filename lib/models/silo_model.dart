@@ -23,21 +23,26 @@ class SiloModel {
   });
 
   factory SiloModel.fromJson(Map<String, dynamic> json) {
-    // DEBUG: Print raw conditions to check if we are receiving mock data
-    print('DEBUG RAW SILO JSON (${json['silo_id']}): ${json['current_conditions']}');
+    // Read from joined sensor_readings array (from Supabase PostgREST join)
+    dynamic conditions = {};
+    if (json['sensor_readings'] != null && json['sensor_readings'] is List && (json['sensor_readings'] as List).isNotEmpty) {
+      conditions = (json['sensor_readings'] as List).first;
+    }
     
-    final conditions = json['current_conditions'] ?? {};
-    final batch = json['current_batch_id'] is Map ? json['current_batch_id'] : {};
+    dynamic batch = json['current_batch'] ?? {};
+    if (batch is! Map) {
+      batch = {};
+    }
 
     return SiloModel(
-      id: json['_id'] ?? '',
-      name: json['name'] ?? json['silo_id'] ?? 'Unknown Silo',
-      capacity: (json['capacity_kg'] ?? 0).toDouble(),
-      currentLevel: (json['current_occupancy_kg'] ?? 0).toDouble(),
+      id: json['id']?.toString() ?? '',
+      name: json['name'] ?? 'Unknown Silo',
+      capacity: _parseValue(json['capacity_kg']),
+      currentLevel: _parseValue(json['current_occupancy_kg']),
       status: json['status'] ?? 'active',
-      temperature: _parseValue(conditions['temperature']),
-      humidity: _parseValue(conditions['humidity']),
-      tvoc: _parseValue(conditions['tvoc'] ?? conditions['co2']), // Fallback to CO2 if TVOC is missing
+      temperature: _parseValue(conditions['temperature'] ?? conditions['temperature_value']),
+      humidity: _parseValue(conditions['humidity'] ?? conditions['humidity_value']),
+      tvoc: _parseValue(conditions['tvoc'] ?? conditions['voc_value'] ?? conditions['co2']), 
       grainType: batch['grain_type'] ?? 'Empty',
     );
   }

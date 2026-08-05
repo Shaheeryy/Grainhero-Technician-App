@@ -47,9 +47,9 @@ class SiloEnvironmentSection extends StatelessWidget {
   }
 
   Widget _buildSiloEnvironmentCard(BuildContext context, SiloModel silo) {
-    final temp = silo.temperature ?? 0;
-    final hum = silo.humidity ?? 0;
-    final tvoc = silo.tvoc ?? 0;
+    final temp = silo.temperature;
+    final hum = silo.humidity;
+    final tvoc = silo.tvoc;
 
     return Container(
       width: 280,

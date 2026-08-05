@@ -19,6 +19,7 @@ class _GrainBatchDetailScreenState extends State<GrainBatchDetailScreen> {
   GrainBatch? _batch;
   bool _loading = true;
   String? _error;
+  bool _updatingStatus = false;
 
   @override
   void initState() {
@@ -49,6 +50,9 @@ class _GrainBatchDetailScreenState extends State<GrainBatchDetailScreen> {
   }
 
   Future<void> _updateStatus(String newStatus) async {
+    setState(() {
+      _updatingStatus = true;
+    });
     try {
       final updated = await _grainBatchService.updateGrainBatch(
         widget.batchId,
@@ -72,6 +76,12 @@ class _GrainBatchDetailScreenState extends State<GrainBatchDetailScreen> {
           backgroundColor: AppTheme.errorColor,
         ),
       );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _updatingStatus = false;
+        });
+      }
     }
   }
 
@@ -403,8 +413,14 @@ class _GrainBatchDetailScreenState extends State<GrainBatchDetailScreen> {
                 ),
               ),
               GestureDetector(
-                onTap: _showUpdateStatusSheet,
-                child: StatusBadge(status: _batch!.status),
+                onTap: _updatingStatus ? null : _showUpdateStatusSheet,
+                child: _updatingStatus
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : StatusBadge(status: _batch!.status),
               ),
             ],
           ),

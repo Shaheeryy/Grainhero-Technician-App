@@ -1,15 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../dashboard/dashboard_screen.dart';
-import '../grain_batches/grain_batches_screen.dart';
 import '../sensors/sensors_screen.dart';
 import '../actuators/actuators_screen.dart';
-import '../alerts/alerts_screen.dart';
 import '../profile/profile_screen.dart';
-import '../qr_scanner/qr_scanner_screen.dart';
 import '../silos/silos_screen.dart';
 import '../../config/app_theme.dart';
-import '../../config/auth_theme.dart';
 import 'widgets/bottom_navigation.dart';
 
 class MainScreen extends StatefulWidget {
@@ -148,6 +144,4 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       ),
     );
   }
-
-
 }
