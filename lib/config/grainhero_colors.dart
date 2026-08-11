@@ -12,5 +12,8 @@ class GrainHeroColors {
   static const Color surfaceContainer = Color(0xFFF2F7F3);
 
   static const Color bodyText = Color(0xFF404F44);
+  static const Color mutedText = Color(0xFF718076);
+  static const Color outline = Color(0xFFBDCBB3);
+  static const Color tonedEggshell = Color(0xFFF5F3E8);
   static const Color error = Color(0xFFBA1A1A);
 }

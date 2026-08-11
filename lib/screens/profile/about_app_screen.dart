@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'terms_of_service_screen.dart';
 import 'privacy_policy_screen.dart';
+import 'open_source_licenses_screen.dart';
 
 class AboutAppScreen extends StatefulWidget {
   const AboutAppScreen({super.key});
@@ -182,7 +183,7 @@ class _AboutAppScreenState extends State<AboutAppScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => const PrivacyPolicyScreen(),
+                                builder: (_) => const AboutAppPrivacyPolicyPage(),
                               ),
                             );
                           },
@@ -194,10 +195,11 @@ class _AboutAppScreenState extends State<AboutAppScreen> {
                           subtitle: 'Third party software notice',
                           icon: Icons.verified_outlined,
                           onTap: () {
-                            showLicensePage(
-                              context: context,
-                              applicationName: 'GrainHero Technician',
-                              applicationVersion: 'v$_version',
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const OpenSourceLicensesScreen(),
+                              ),
                             );
                           },
                         ),
