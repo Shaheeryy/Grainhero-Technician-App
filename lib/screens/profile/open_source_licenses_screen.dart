@@ -485,7 +485,7 @@ class _OpenSourceLicensesScreenState extends State<OpenSourceLicensesScreen>
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12),
                           child: _PackageLicenseCard(
-                            key: ValueKey('${item.name}_$_expandAll'),
+                            key: ValueKey('${item.name}_${item.licenseType}_${index}_$_expandAll'),
                             package: item,
                             initiallyExpanded: _expandAll,
                           ),
@@ -804,7 +804,6 @@ class _PackageLicenseCardState extends State<_PackageLicenseCard> {
         ),
       ),
       child: ExpansionTile(
-        key: PageStorageKey(widget.package.name),
         initiallyExpanded: widget.initiallyExpanded,
         onExpansionChanged: (val) => setState(() => _isExpanded = val),
         tilePadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
