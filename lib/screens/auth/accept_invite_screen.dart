@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:grainhero_technician_app/config/app_theme.dart';
 import 'package:grainhero_technician_app/config/auth_theme.dart';
 import 'package:grainhero_technician_app/screens/auth/login_screen.dart';
 import 'package:grainhero_technician_app/services/auth_service.dart';
+import 'package:grainhero_technician_app/widgets/common/app_toast.dart';
 
 class AcceptInviteScreen extends StatefulWidget {
   final String? prefilledEmail;
@@ -58,12 +58,7 @@ class _AcceptInviteScreenState extends State<AcceptInviteScreen> {
     setState(() => _isLoading = false);
 
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Account activated — please log in'),
-          backgroundColor: AppTheme.successColor,
-        ),
-      );
+      AppToast.show(context, 'Account activated — please log in');
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => LoginScreen(email: email)),
         (route) => false,
@@ -74,16 +69,7 @@ class _AcceptInviteScreenState extends State<AcceptInviteScreen> {
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppTheme.errorColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        ),
-      ),
-    );
+    AppToast.show(context, message, isError: true);
   }
 
   @override

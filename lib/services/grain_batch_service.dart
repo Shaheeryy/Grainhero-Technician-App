@@ -16,7 +16,7 @@ class GrainBatchService {
     try {
       var query = _supabase
           .from('grain_batches')
-          .select('*, silos(id, name, silo_id)');
+          .select('*, silos!grain_batches_silo_id_fkey(id, name, silo_id)');
           
       if (status != null && status.isNotEmpty) {
         query = query.eq('status', status);
@@ -54,7 +54,7 @@ class GrainBatchService {
     try {
       final data = await _supabase
           .from('grain_batches')
-          .select('*, silos(id, name, silo_id)')
+          .select('*, silos!grain_batches_silo_id_fkey(id, name, silo_id)')
           .eq('id', id)
           .single();
           
@@ -83,7 +83,7 @@ class GrainBatchService {
           .from('grain_batches')
           .update(updates)
           .eq('id', id)
-          .select('*, silos(id, name, silo_id)')
+          .select('*, silos!grain_batches_silo_id_fkey(id, name, silo_id)')
           .single();
           
       return GrainBatch.fromJson(data);

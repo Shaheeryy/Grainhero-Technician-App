@@ -9,6 +9,11 @@ import 'legal_page_components.dart';
 class TermsOfServiceScreen extends StatelessWidget {
   const TermsOfServiceScreen({super.key});
 
+  static const _pageBg = Color(0xFFFEFAE4);
+  static const _textDark = Color(0xFF1D1C0F);
+  static const _textTertiary = Color(0xFF536256);
+  static const _primaryDark = Color(0xFF176E00);
+
   @override
   Widget build(BuildContext context) {
     return LegalDocumentPage(

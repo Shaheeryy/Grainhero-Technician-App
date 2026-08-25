@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:grainhero_technician_app/config/app_theme.dart';
 import 'package:grainhero_technician_app/config/auth_theme.dart';
 import 'package:grainhero_technician_app/screens/auth/otp_verification_screen.dart';
 import 'package:grainhero_technician_app/screens/auth/accept_invite_screen.dart';
 import 'package:grainhero_technician_app/services/auth_service.dart';
+import 'package:grainhero_technician_app/widgets/common/app_toast.dart';
 
 class LoginScreen extends StatefulWidget {
   final String? email;
@@ -61,17 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppTheme.errorColor,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-        ),
-        duration: const Duration(seconds: 4),
-      ),
-    );
+    AppToast.show(context, message, isError: true);
   }
 
   @override
@@ -277,9 +267,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                   height: 52,
                                   child: OutlinedButton.icon(
                                     onPressed: () {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Google Login not implemented yet.')),
-                                      );
+                                      AppToast.show(context, 'Google Login not implemented yet.');
                                     },
                                     style: OutlinedButton.styleFrom(
                                       backgroundColor: Colors.white,

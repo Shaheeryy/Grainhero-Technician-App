@@ -36,17 +36,15 @@ class AuthService extends ChangeNotifier {
 
   Future<void> _fetchUserProfile(String userId) async {
     try {
-      final profileData = await _supabase
-          .from('profiles')
-          .select()
-          .eq('id', userId)
-          .maybeSingle();
-
-      final roleData = await _supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', userId)
-          .maybeSingle();
+      // No FK relationship exists between profiles/user_roles (confirmed
+      // against the live schema), so these can't be a single embedded
+      // select — run them in parallel instead of sequentially.
+      final results = await Future.wait([
+        _supabase.from('profiles').select().eq('id', userId).maybeSingle(),
+        _supabase.from('user_roles').select('role').eq('user_id', userId).maybeSingle(),
+      ]);
+      final profileData = results[0];
+      final roleData = results[1];
 
       if (profileData != null) {
         profileData['role'] = roleData?['role'] ?? 'technician';
@@ -56,6 +54,17 @@ class AuthService extends ChangeNotifier {
     } catch (e) {
       debugPrint('Error fetching user profile: $e');
     }
+  }
+
+  /// Re-fetches the current user's profile and notifies listeners — call
+  /// after updating profile fields (name, avatar) elsewhere so every screen
+  /// reading `AuthService.user` (e.g. the dashboard header) picks up the
+  /// change immediately instead of only the screen that made the edit.
+  Future<void> refreshUser() async {
+    final id = _supabase.auth.currentUser?.id;
+    if (id == null) return;
+    await _fetchUserProfile(id);
+    notifyListeners();
   }
 
   Future<bool> sendLoginOtp(String email) async {
@@ -71,6 +80,14 @@ class AuthService extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
       return true;
+    } on AuthRetryableFetchException {
+      // Thrown when the underlying HTTP request itself fails (timeout, no
+      // connectivity, DNS) — its .message is the raw SocketException text,
+      // not something to show a user.
+      _isLoading = false;
+      _error = 'Network error. Please check your connection.';
+      notifyListeners();
+      return false;
     } on AuthException catch (e) {
       _isLoading = false;
       _error = e.message;
@@ -109,6 +126,11 @@ class AuthService extends ChangeNotifier {
       }
       _isLoading = false;
       _error = 'Verification failed';
+      notifyListeners();
+      return false;
+    } on AuthRetryableFetchException {
+      _isLoading = false;
+      _error = 'Network error. Please check your connection.';
       notifyListeners();
       return false;
     } on AuthException catch (e) {

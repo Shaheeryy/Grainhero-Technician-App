@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../../config/app_theme.dart';
+import '../../config/auth_theme.dart';
+import '../../widgets/common/app_toast.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../grain_batches/grain_batch_detail_screen.dart';
 import '../sensors/sensor_detail_screen.dart';
@@ -201,7 +203,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
             Container(
               padding: const EdgeInsets.all(AppTheme.spacingM),
               decoration: BoxDecoration(
-                color: AppTheme.backgroundColor,
+                color: AuthTheme.beigeBackground,
                 borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
               ),
               child: SelectableText(
@@ -228,13 +230,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppTheme.errorColor,
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
+    AppToast.show(context, message, isError: true);
     _resetScanner();
   }
 
@@ -265,9 +261,9 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AuthTheme.greenOverlay,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: AuthTheme.greenOverlay,
         foregroundColor: Colors.white,
         elevation: 0,
         title: const Text(
@@ -329,7 +325,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
           Container(
             padding: const EdgeInsets.all(AppTheme.spacingXL),
             decoration: const BoxDecoration(
-              color: AppTheme.surfaceColor,
+              color: AuthTheme.surface,
               borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
             ),
             child: Column(
@@ -341,7 +337,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
                     width: 40,
                     height: 4,
                     decoration: BoxDecoration(
-                      color: AppTheme.dividerColor,
+                      color: AuthTheme.dividerColor,
                       borderRadius: BorderRadius.circular(2),
                     ),
                   ),
@@ -352,7 +348,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
                   'Or enter ID manually',
                   style: TextStyle(
                     fontSize: 14,
-                    color: AppTheme.textSecondary,
+                    color: AuthTheme.textSecondary,
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -368,7 +364,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
                           hintText: 'Batch ID or Sensor ID',
                           prefixIcon: const Icon(Icons.tag),
                           filled: true,
-                          fillColor: AppTheme.backgroundColor,
+                          fillColor: AuthTheme.beigeBackground,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                             borderSide: BorderSide.none,
@@ -385,7 +381,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
                     const SizedBox(width: AppTheme.spacingM),
                     Container(
                       decoration: BoxDecoration(
-                        gradient: AppTheme.primaryGradient,
+                        color: AuthTheme.primaryGreen,
                         borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                       ),
                       child: IconButton(
@@ -440,7 +436,7 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
                 decoration: BoxDecoration(
                   color: Colors.transparent,
                   border: Border.all(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.8),
+                    color: AuthTheme.primaryGreen.withValues(alpha: 0.8),
                     width: 2,
                   ),
                   borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
@@ -491,16 +487,16 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
       decoration: BoxDecoration(
         border: Border(
           top: isTop
-              ? const BorderSide(color: AppTheme.primaryColor, width: 4)
+              ? const BorderSide(color: AuthTheme.primaryGreen, width: 4)
               : BorderSide.none,
           bottom: !isTop
-              ? const BorderSide(color: AppTheme.primaryColor, width: 4)
+              ? const BorderSide(color: AuthTheme.primaryGreen, width: 4)
               : BorderSide.none,
           left: isLeft
-              ? const BorderSide(color: AppTheme.primaryColor, width: 4)
+              ? const BorderSide(color: AuthTheme.primaryGreen, width: 4)
               : BorderSide.none,
           right: !isLeft
-              ? const BorderSide(color: AppTheme.primaryColor, width: 4)
+              ? const BorderSide(color: AuthTheme.primaryGreen, width: 4)
               : BorderSide.none,
         ),
       ),
@@ -511,19 +507,19 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: AppTheme.backgroundColor,
+        color: AuthTheme.beigeBackground,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: AppTheme.textSecondary),
+          Icon(icon, size: 14, color: AuthTheme.textSecondary),
           const SizedBox(width: 4),
           Text(
             label,
             style: const TextStyle(
               fontSize: 11,
-              color: AppTheme.textSecondary,
+              color: AuthTheme.textSecondary,
             ),
           ),
         ],

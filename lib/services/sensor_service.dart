@@ -139,21 +139,29 @@ class SensorService {
   /// Fetch dashboard data.
   Future<Map<String, dynamic>> fetchDashboard() async {
     try {
-      // Manual aggregation since Dashboard Edge Function does not exist
-      final siloResponse = await _supabase.from('silos').select('id');
-      final batchResponse = await _supabase.from('grain_batches').select('id');
-      // grain_alerts.status is a Postgres enum: pending | acknowledged | resolved
-      // (no 'active' value exists) — "active" here means not yet resolved.
-      final alertResponse = await _supabase.from('grain_alerts').select('id').neq('status', 'resolved');
-      
-      final siloCount = (siloResponse as List).length;
-      final batchCount = (batchResponse as List).length;
-      final alertCount = (alertResponse as List).length;
-      
-      // For now, fetch latest objects for recent lists
-      final recentSilos = await _supabase.from('silos').select('*').limit(5);
-      final recentBatches = await _supabase.from('grain_batches').select('*').limit(5);
-      final recentAlerts = await _supabase.from('grain_alerts').select('*').neq('status', 'resolved').limit(5);
+      // Manual aggregation since Dashboard Edge Function does not exist.
+      // Counts use head-only count() queries (no row data fetched) instead
+      // of fetching full row lists just to call .length, and everything
+      // independent runs in parallel instead of sequentially.
+      final countResults = await Future.wait<int>([
+        _supabase.from('silos').count(),
+        _supabase.from('grain_batches').count(),
+        // grain_alerts.status is a Postgres enum: pending | acknowledged |
+        // resolved (no 'active' value exists) — "active" means not resolved.
+        _supabase.from('grain_alerts').count().neq('status', 'resolved'),
+      ]);
+      final listResults = await Future.wait<List<Map<String, dynamic>>>([
+        _supabase.from('silos').select('*').limit(5),
+        _supabase.from('grain_batches').select('*').limit(5),
+        _supabase.from('grain_alerts').select('*').neq('status', 'resolved').limit(5),
+      ]);
+
+      final siloCount = countResults[0];
+      final batchCount = countResults[1];
+      final alertCount = countResults[2];
+      final recentSilos = listResults[0];
+      final recentBatches = listResults[1];
+      final recentAlerts = listResults[2];
 
       return {
         'stats': {

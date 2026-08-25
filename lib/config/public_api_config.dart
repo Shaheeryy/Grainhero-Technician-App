@@ -19,7 +19,7 @@ class PublicApiConfig {
   /// Your machine's LAN IP, for testing on a physical device connected via
   /// USB/WiFi against the local backend. Same IP as ApiConfig.physicalDeviceIp
   /// (same dev machine) — update both together if it changes.
-  static const String? physicalDeviceIp = '10.10.10.150';
+  static const String? physicalDeviceIp = '10.10.60.82';
 
   /// Port your local backend dev server runs on.
   static const int localPort = 8080;
