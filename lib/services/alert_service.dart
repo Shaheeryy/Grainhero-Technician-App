@@ -11,7 +11,8 @@ class AlertService {
       final data = await _supabase
           .from('grain_alerts')
           .select('*, silos(name), warehouses(name), grain_batches(grain_type)')
-          .order('triggered_at', ascending: false);
+          .order('triggered_at', ascending: false)
+          .limit(50);
 
       final alerts = (data as List).map((alert) => AlertModel.fromJson(alert)).toList();
       return alerts;

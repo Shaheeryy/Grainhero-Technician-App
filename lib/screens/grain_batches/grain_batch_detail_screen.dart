@@ -4,6 +4,7 @@ import 'package:grainhero_technician_app/models/grain_batch_model.dart';
 import 'package:grainhero_technician_app/services/grain_batch_service.dart';
 import 'package:grainhero_technician_app/widgets/common/error_widget.dart';
 import 'package:grainhero_technician_app/widgets/common/status_badge.dart';
+import 'package:grainhero_technician_app/widgets/common/app_toast.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 class GrainBatchDetailScreen extends StatefulWidget {
@@ -62,20 +63,10 @@ class _GrainBatchDetailScreenState extends State<GrainBatchDetailScreen> {
       setState(() {
         _batch = updated;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Batch status updated successfully'),
-          backgroundColor: AppTheme.successColor,
-        ),
-      );
+      AppToast.show(context, 'Batch status updated successfully');
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to update: ${e.toString()}'),
-          backgroundColor: AppTheme.errorColor,
-        ),
-      );
+      AppToast.show(context, 'Failed to update: ${e.toString()}', isError: true);
     } finally {
       if (mounted) {
         setState(() {

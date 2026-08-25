@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../../config/grainhero_colors.dart';
+import '../../../../services/auth_service.dart';
 import '../../../../widgets/dashboard/dashboard_widgets.dart';
 
 class DashboardHeader extends StatelessWidget {
@@ -44,18 +46,29 @@ class DashboardHeader extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: GrainHeroColors.surfaceContainer,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: GrainHeroColors.primary, width: 2),
-                ),
-                child: const Icon(
-                  Icons.person_rounded,
-                  color: GrainHeroColors.bodyText,
-                ),
+              Consumer<AuthService>(
+                builder: (context, authService, _) {
+                  final avatar = authService.user?.avatar;
+                  final hasAvatar = avatar != null && avatar.isNotEmpty;
+                  return Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: GrainHeroColors.surfaceContainer,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: GrainHeroColors.primary, width: 2),
+                      image: hasAvatar
+                          ? DecorationImage(image: NetworkImage(avatar), fit: BoxFit.cover)
+                          : null,
+                    ),
+                    child: hasAvatar
+                        ? null
+                        : const Icon(
+                            Icons.person_rounded,
+                            color: GrainHeroColors.bodyText,
+                          ),
+                  );
+                },
               ),
               const SizedBox(width: 12),
               Expanded(

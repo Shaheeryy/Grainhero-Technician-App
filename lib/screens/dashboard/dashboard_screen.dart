@@ -8,8 +8,10 @@ import 'package:grainhero_technician_app/services/user_service.dart';
 import 'package:grainhero_technician_app/services/auth_service.dart';
 import 'package:grainhero_technician_app/models/user_model.dart';
 import 'package:grainhero_technician_app/widgets/common/error_widget.dart';
+import 'package:grainhero_technician_app/widgets/common/app_toast.dart';
 import 'package:grainhero_technician_app/services/grain_batch_service.dart';
 import 'package:grainhero_technician_app/services/silo_service.dart';
+import 'package:grainhero_technician_app/models/silo_model.dart';
 import 'package:grainhero_technician_app/services/sensor_service.dart';
 import '../qr_scanner/qr_scanner_screen.dart';
 import '../alerts/alerts_screen.dart';
@@ -85,56 +87,73 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return;
       }
 
-      UserModel? user;
-      try {
-        user = await _userService.getMyProfile();
-      } catch (e) {
-        debugPrint('Failed to fetch user profile: $e');
+      // These four fetches don't depend on each other's results, so run
+      // them concurrently instead of one-after-another — each still
+      // tolerates its own failure independently, matching the previous
+      // sequential behavior, just without waiting for each in turn.
+      Future<UserModel?> safeGetProfile() async {
+        try {
+          return await _userService.getMyProfile();
+        } catch (e) {
+          debugPrint('Failed to fetch user profile: $e');
+          return null;
+        }
       }
+
+      Future<Map<String, dynamic>?> safeGetBatches() async {
+        try {
+          return await _grainBatchService.getGrainBatches(page: 1, limit: 5);
+        } catch (e) {
+          debugPrint('Failed to fetch real batch count: $e');
+          return null;
+        }
+      }
+
+      Future<List<SiloModel>?> safeGetSilos() async {
+        try {
+          return await SiloService.getSilos();
+        } catch (e) {
+          debugPrint('Failed to fetch real silo count: $e');
+          return null;
+        }
+      }
+
+      Future<Map<String, dynamic>?> safeGetDashboard() async {
+        try {
+          return await SensorService().fetchDashboard();
+        } catch (e) {
+          debugPrint('Failed to fetch dashboard aggregate: $e');
+          return null;
+        }
+      }
+
+      // Start all four independent fetches before awaiting any of them, so
+      // they actually run concurrently instead of one-after-another.
+      final userFuture = safeGetProfile();
+      final batchResultFuture = safeGetBatches();
+      final silosFuture = safeGetSilos();
+      final responseDataFuture = safeGetDashboard();
+      final user = await userFuture;
+      final batchResult = await batchResultFuture;
+      final silos = await silosFuture;
+      final responseData = await responseDataFuture;
 
       int? realBatchCount;
-      try {
-        // Fetch a few batches to inspect their statuses
-        final result = await _grainBatchService.getGrainBatches(page: 1, limit: 5);
-        if (result['pagination'] != null && result['pagination']['total_count'] != null) {
-          realBatchCount = result['pagination']['total_count'];
+      if (batchResult != null) {
+        if (batchResult['pagination'] != null && batchResult['pagination']['total_count'] != null) {
+          realBatchCount = batchResult['pagination']['total_count'];
         } else {
-          realBatchCount = (result['batches'] as List).length;
+          realBatchCount = (batchResult['batches'] as List).length;
         }
-        
-        // DEBUG: Print statuses to finding the correct filter
-        final batches = (result['batches'] as List);
-        debugPrint('DEBUG: Fetched ${batches.length} batches. Statuses: ${batches.map((b) => b.status).toList()}');
-        
-      } catch (e) {
-        debugPrint('Failed to fetch real batch count: $e');
       }
-
-      int? realSiloCount;
-      try {
-        final silos = await SiloService.getSilos();
-        realSiloCount = silos.length;
-          if (mounted) {
-            setState(() {
-              _silos = silos;
-            });
-            // DEBUG LOG FOR DATA VERIFICATION
-            for (var s in silos) {
-              debugPrint('DEBUG SILO DATA: ${s.name} (Status: ${s.status}) -> Temp: ${s.temperature}, Hum: ${s.humidity}, TVOC: ${s.tvoc}');
-            }
-          }
-      } catch (e) {
-        debugPrint('Failed to fetch real silo count: $e');
-      }
-
-      // Instead of HTTP, call the modified SensorService method for now (G5: No aggregate dashboard yet)
-      final responseData = await SensorService().fetchDashboard();
+      final realSiloCount = silos?.length;
 
       if (!mounted) return;
 
       try {
         setState(() {
-          dashboardData = responseData;
+          if (responseData != null) dashboardData = responseData;
+          if (silos != null) _silos = silos;
           // Use directly fetched counts
           if (realSiloCount != null) _realSiloCount = realSiloCount;
           if (realBatchCount != null) _realBatchCount = realBatchCount;
@@ -164,37 +183,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
       
       if (!mounted) return;
       
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
-              SizedBox(width: 12),
-              Text(
-                'Alert successfully acknowledged',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-          backgroundColor: AppTheme.successColor,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          duration: const Duration(seconds: 3),
-        ),
-      );
-      
+      AppToast.show(context, 'Alert successfully acknowledged');
+
       // Refresh dashboard to remove the alert
       _fetchDashboard();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to acknowledge: $e'),
-          backgroundColor: AppTheme.errorColor,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppToast.show(context, 'Failed to acknowledge: $e', isError: true);
     }
   }
 
