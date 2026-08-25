@@ -5,10 +5,12 @@ import '../../services/alert_service.dart';
 import '../../services/auth_service.dart';
 import '../../models/alert_model.dart';
 import '../../config/app_theme.dart';
+import '../../config/auth_theme.dart';
 
 import '../../widgets/common/error_widget.dart';
 import '../../widgets/common/empty_state_widget.dart';
 import '../../widgets/common/status_badge.dart';
+import '../../widgets/common/app_toast.dart';
 
 class AlertsScreen extends StatefulWidget {
   const AlertsScreen({super.key});
@@ -72,20 +74,20 @@ class _AlertsScreenState extends State<AlertsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: AuthTheme.beigeBackground,
       appBar: AppBar(
         title: const Text(
           'Alerts',
           style: TextStyle(
             fontWeight: FontWeight.w600,
-            color: AppTheme.textPrimary,
+            color: AuthTheme.textPrimary,
           ),
         ),
-        backgroundColor: AppTheme.surfaceColor,
+        backgroundColor: AuthTheme.surface,
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: AppTheme.textSecondary),
+            icon: const Icon(Icons.refresh, color: AuthTheme.textSecondary),
             onPressed: _loadAlerts,
           ),
         ],
@@ -97,7 +99,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
   Widget _buildBody() {
     if (_isLoading) {
       return const Center(
-        child: CircularProgressIndicator(color: AppTheme.primaryColor),
+        child: CircularProgressIndicator(color: AuthTheme.primaryGreen),
       );
     }
 
@@ -116,7 +118,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
 
     return RefreshIndicator(
       onRefresh: _loadAlerts,
-      color: AppTheme.primaryColor,
+      color: AuthTheme.primaryGreen,
       child: ListView.builder(
         padding: const EdgeInsets.all(AppTheme.spacingL),
         itemCount: _alerts.length,
@@ -130,10 +132,19 @@ class _AlertsScreenState extends State<AlertsScreen> {
   Widget _buildAlertCard(AlertModel alert) {
     return Container(
       margin: const EdgeInsets.only(bottom: AppTheme.spacingM),
-      decoration: AppTheme.cardDecoration.copyWith(
+      decoration: BoxDecoration(
+        color: AuthTheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AuthTheme.primaryGreen.withValues(alpha: 0.12),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
         border: Border(
           left: BorderSide(
-            color: alert.acknowledged ? AppTheme.dividerColor : AppTheme.errorColor,
+            color: alert.acknowledged ? AuthTheme.dividerColor : AuthTheme.error,
             width: 4,
           ),
         ),
@@ -163,7 +174,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: AppTheme.backgroundColor,
+                        color: AuthTheme.beigeBackground,
                         borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
                       ),
                       child: Text(
@@ -171,7 +182,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                         style: const TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
-                          color: AppTheme.textSecondary,
+                          color: AuthTheme.textSecondary,
                         ),
                       ),
                     ),
@@ -179,7 +190,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                     if (alert.acknowledged)
                       const Icon(
                         Icons.check_circle_outline,
-                        color: AppTheme.successColor,
+                        color: AuthTheme.primaryGreen,
                         size: 18,
                       ),
                   ],
@@ -190,7 +201,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
-                    color: AppTheme.textPrimary,
+                    color: AuthTheme.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -198,7 +209,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                   alert.message,
                   style: const TextStyle(
                     fontSize: 14,
-                    color: AppTheme.textSecondary,
+                    color: AuthTheme.textSecondary,
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -212,7 +223,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                       const Icon(
                         Icons.location_on_outlined,
                         size: 14,
-                        color: AppTheme.textHint,
+                        color: AuthTheme.textHint,
                       ),
                       const SizedBox(width: 4),
                       Expanded(
@@ -220,7 +231,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                           alert.location!,
                           style: const TextStyle(
                             fontSize: 12,
-                            color: AppTheme.textSecondary,
+                            color: AuthTheme.textSecondary,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -229,14 +240,14 @@ class _AlertsScreenState extends State<AlertsScreen> {
                     const Icon(
                       Icons.access_time,
                       size: 14,
-                      color: AppTheme.textHint,
+                      color: AuthTheme.textHint,
                     ),
                     const SizedBox(width: 4),
                     Text(
                       _formatTimestamp(alert.createdAt),
                       style: const TextStyle(
                         fontSize: 12,
-                        color: AppTheme.textHint,
+                        color: AuthTheme.textHint,
                       ),
                     ),
                   ],
@@ -249,8 +260,8 @@ class _AlertsScreenState extends State<AlertsScreen> {
                       onPressed: () => _acknowledgeAlert(alert.id),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 12),
-                        foregroundColor: AppTheme.primaryColor,
-                        side: BorderSide(color: AppTheme.primaryColor.withValues(alpha: 0.5)),
+                        foregroundColor: AuthTheme.primaryGreen,
+                        side: BorderSide(color: AuthTheme.primaryGreen.withValues(alpha: 0.5)),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
                         ),
@@ -286,7 +297,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
           builder: (context, scrollController) {
             return Container(
               decoration: const BoxDecoration(
-                color: AppTheme.surfaceColor,
+                color: AuthTheme.surface,
                 borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
               ),
               child: SingleChildScrollView(
@@ -300,7 +311,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                         width: 40,
                         height: 4,
                         decoration: BoxDecoration(
-                          color: AppTheme.dividerColor,
+                          color: AuthTheme.dividerColor,
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
@@ -314,13 +325,13 @@ class _AlertsScreenState extends State<AlertsScreen> {
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                             color: alert.acknowledged 
-                                ? AppTheme.successColor.withValues(alpha: 0.1)
-                                : AppTheme.errorColor.withValues(alpha: 0.1),
+                                ? AuthTheme.primaryGreen.withValues(alpha: 0.1)
+                                : AuthTheme.error.withValues(alpha: 0.1),
                             shape: BoxShape.circle,
                           ),
                           child: Icon(
                             alert.acknowledged ? Icons.check_circle_outline : Icons.warning_amber_rounded,
-                            color: alert.acknowledged ? AppTheme.successColor : AppTheme.errorColor,
+                            color: alert.acknowledged ? AuthTheme.primaryGreen : AuthTheme.error,
                             size: 32,
                           ),
                         ),
@@ -334,7 +345,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                                 style: const TextStyle(
                                   fontSize: 20,
                                   fontWeight: FontWeight.bold,
-                                  color: AppTheme.textPrimary,
+                                  color: AuthTheme.textPrimary,
                                 ),
                               ),
                               const SizedBox(height: 4),
@@ -342,7 +353,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                                 _formatTimestamp(alert.createdAt),
                                 style: const TextStyle(
                                   fontSize: 14,
-                                  color: AppTheme.textHint,
+                                  color: AuthTheme.textHint,
                                 ),
                               ),
                             ],
@@ -370,7 +381,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
-                        color: AppTheme.textSecondary,
+                        color: AuthTheme.textSecondary,
                       ),
                     ),
                     const SizedBox(height: AppTheme.spacingS),
@@ -378,7 +389,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                       alert.message, // Use message as description if description is null
                       style: const TextStyle(
                         fontSize: 16,
-                        color: AppTheme.textPrimary,
+                        color: AuthTheme.textPrimary,
                         height: 1.5,
                       ),
                     ),
@@ -388,7 +399,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                         alert.description!,
                         style: const TextStyle(
                           fontSize: 14,
-                          color: AppTheme.textSecondary,
+                          color: AuthTheme.textSecondary,
                           height: 1.5,
                         ),
                       ),
@@ -405,8 +416,8 @@ class _AlertsScreenState extends State<AlertsScreen> {
                           },
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 16),
-                            backgroundColor: AppTheme.primaryColor,
-                            foregroundColor: Colors.black,
+                            backgroundColor: AuthTheme.primaryGreen,
+                            foregroundColor: Colors.white,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
                             ),
@@ -445,7 +456,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
               label,
               style: const TextStyle(
                 fontSize: 14,
-                color: AppTheme.textSecondary,
+                color: AuthTheme.textSecondary,
               ),
             ),
           ),
@@ -463,7 +474,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: AppTheme.textPrimary,
+                  color: AuthTheme.textPrimary,
                 ),
               ),
             ),
@@ -491,37 +502,13 @@ class _AlertsScreenState extends State<AlertsScreen> {
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(
-            children: [
-              Icon(Icons.check_circle_outline, color: Colors.white, size: 20),
-              SizedBox(width: 12),
-              Text(
-                'Alert successfully acknowledged',
-                style: TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-          backgroundColor: AppTheme.successColor,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          duration: const Duration(seconds: 3),
-        ),
-      );
+      AppToast.show(context, 'Alert successfully acknowledged');
 
       _loadAlerts();
     } catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to acknowledge alert: $e'),
-          backgroundColor: AppTheme.errorColor,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      AppToast.show(context, 'Failed to acknowledge alert: $e', isError: true);
     }
   }
 }

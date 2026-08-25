@@ -1,25 +1,32 @@
 import 'package:flutter/material.dart';
-import 'package:grainhero_technician_app/config/grainhero_colors.dart';
-import '../../config/app_theme.dart';
 
 class TermsOfServiceScreen extends StatelessWidget {
   const TermsOfServiceScreen({super.key});
 
+  static const _pageBg = Color(0xFFFEFAE4);
+  static const _textDark = Color(0xFF1D1C0F);
+  static const _textTertiary = Color(0xFF536256);
+  static const _primaryDark = Color(0xFF176E00);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: GrainHeroColors.pageBackground,
+      backgroundColor: _pageBg,
       appBar: AppBar(
-        backgroundColor: GrainHeroColors.pageBackground,
-            surfaceTintColor: Colors.transparent, // Prevents Material 3 tint
-        title: const Text('Terms of Service', style: TextStyle(color: GrainHeroColors.dark)),
-        iconTheme: const IconThemeData(color: GrainHeroColors.dark),
+        backgroundColor: _pageBg,
         elevation: 0,
-      ),
-      body: DefaultTextStyle(
-        style: const TextStyle(
-          color: Colors.black,
+        scrolledUnderElevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: _textDark),
+          onPressed: () => Navigator.of(context).pop(),
         ),
+        title: const Text(
+          'Terms of Service',
+          style: TextStyle(color: _textDark, fontSize: 20, fontWeight: FontWeight.w600),
+        ),
+        centerTitle: false,
+      ),
+      body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -30,13 +37,15 @@ class TermsOfServiceScreen extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
+                  color: _textDark,
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
+              const Text(
                 'Last updated: April 2026',
                 style: TextStyle(
                   fontSize: 13,
+                  color: _textTertiary,
                 ),
               ),
               const SizedBox(height: 24),
@@ -81,12 +90,12 @@ class TermsOfServiceScreen extends StatelessWidget {
                 'For questions or concerns regarding these Terms of Service, please contact us at support@grainhero.com.',
               ),
               const SizedBox(height: 32),
-              Center(
+              const Center(
                 child: Text(
                   '© 2026 GrainHero Inc. All rights reserved.',
                   style: TextStyle(
                     fontSize: 12,
-                    color: AppTheme.textHint,
+                    color: _textTertiary,
                   ),
                 ),
               ),
@@ -109,13 +118,15 @@ class TermsOfServiceScreen extends StatelessWidget {
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
+              color: _primaryDark,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             content,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 14,
+              color: _textDark,
               height: 1.6,
             ),
           ),

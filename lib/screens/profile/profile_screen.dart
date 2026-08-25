@@ -6,8 +6,8 @@ import '../../services/auth_service.dart';
 import '../../services/user_service.dart';
 import '../../models/user_model.dart';
 import '../../config/grainhero_colors.dart';
+import '../../widgets/common/app_toast.dart';
 import '../auth/login_screen.dart';
-import 'change_password_screen.dart';
 import 'about_app_screen.dart';
 import 'edit_profile_modal.dart';
 import '../logs/activity_logs_screen.dart';
@@ -49,7 +49,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _pickImage() async {
     try {
-      final XFile? image = await _imagePicker.pickImage(source: ImageSource.gallery);
+      final XFile? image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70,
+        maxWidth: 800,
+        maxHeight: 800,
+      );
       if (image == null) return;
 
       setState(() {
@@ -71,16 +76,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         });
 
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: const Text('Profile picture updated successfully'),
-              backgroundColor: GrainHeroColors.primary,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-            ),
-          );
+          // Refresh the shared AuthService user so other screens (e.g. the
+          // dashboard header) pick up the new avatar immediately.
+          await Provider.of<AuthService>(context, listen: false).refreshUser();
+        }
+
+        if (mounted) {
+          AppToast.show(context, 'Profile picture updated successfully');
         }
       } else {
         throw Exception('No image URL returned from upload');
@@ -90,16 +92,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _loading = false;
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to update profile picture: $e'),
-            backgroundColor: GrainHeroColors.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-          ),
-        );
+        AppToast.show(context, 'Failed to update profile picture: $e', isError: true);
       }
     }
   }
@@ -126,32 +119,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _userProfile = updatedUser;
           _loading = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Profile updated successfully'),
-            backgroundColor: GrainHeroColors.primary,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-          ),
-        );
+        await Provider.of<AuthService>(context, listen: false).refreshUser();
+        if (mounted && context.mounted) {
+          AppToast.show(context, 'Profile updated successfully');
+        }
       }
     } catch (e) {
       if (mounted && context.mounted) {
         setState(() {
           _loading = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed: ${e.toString()}'),
-            backgroundColor: GrainHeroColors.error,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-          ),
-        );
+        AppToast.show(context, 'Failed: ${e.toString()}', isError: true);
       }
     }
   }
@@ -287,12 +265,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: _SettingsSection(
                         onEditProfilePressed: () => _showEditProfileSheet(context, user),
-                        onChangePasswordPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
-                          );
-                        },
                         onAboutAppPressed: () {
                           Navigator.push(
                             context,
@@ -675,13 +647,11 @@ class _AccountSummaryItem extends StatelessWidget {
 class _SettingsSection extends StatelessWidget {
   const _SettingsSection({
     required this.onEditProfilePressed,
-    required this.onChangePasswordPressed,
     required this.onAboutAppPressed,
     required this.onActivityLogsPressed,
   });
 
   final VoidCallback onEditProfilePressed;
-  final VoidCallback onChangePasswordPressed;
   final VoidCallback onAboutAppPressed;
   final VoidCallback onActivityLogsPressed;
 
@@ -723,14 +693,6 @@ class _SettingsSection extends StatelessWidget {
                 icon: Icons.manage_accounts_outlined,
                 title: 'Edit Profile',
                 onPressed: onEditProfilePressed,
-              ),
-
-              const _SettingsDivider(),
-
-              _SettingsItem(
-                icon: Icons.lock_reset_rounded,
-                title: 'Change Password',
-                onPressed: onChangePasswordPressed,
               ),
 
               const _SettingsDivider(),

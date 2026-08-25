@@ -1,41 +1,54 @@
 import 'package:flutter/material.dart';
-import '../../config/app_theme.dart';
 
 class PrivacyPolicyScreen extends StatelessWidget {
   const PrivacyPolicyScreen({super.key});
 
+  static const _pageBg = Color(0xFFFEFAE4);
+  static const _textDark = Color(0xFF1D1C0F);
+  static const _textTertiary = Color(0xFF536256);
+  static const _primaryDark = Color(0xFF176E00);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
+      backgroundColor: _pageBg,
       appBar: AppBar(
-        title: const Text('Privacy Policy', style: TextStyle(color: AppTheme.textPrimary)),
-        backgroundColor: AppTheme.surfaceColor,
-        iconTheme: const IconThemeData(color: AppTheme.textPrimary),
+        backgroundColor: _pageBg,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: _textDark),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: const Text(
+          'Privacy Policy',
+          style: TextStyle(color: _textDark, fontSize: 20, fontWeight: FontWeight.w600),
+        ),
+        centerTitle: false,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Privacy Policy',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: AppTheme.textPrimary,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Privacy Policy',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: _textDark,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Last updated: April 2026',
-              style: TextStyle(
-                fontSize: 13,
-                color: AppTheme.textSecondary,
+              const SizedBox(height: 8),
+              const Text(
+                'Last updated: April 2026',
+                style: TextStyle(
+                  fontSize: 13,
+                  color: _textTertiary,
+                ),
               ),
-            ),
-            const SizedBox(height: 24),
+              const SizedBox(height: 24),
             _buildSection(
               '1. Information We Collect',
               'We collect information you provide directly to us, including your name, email address, phone number, and professional credentials when you create an account. We also collect data from sensors and devices connected through the App, including environmental readings (temperature, humidity, air quality) and equipment status information.',
@@ -99,17 +112,18 @@ class PrivacyPolicyScreen extends StatelessWidget {
               'GrainHero Inc.',
             ),
             const SizedBox(height: 32),
-            Center(
+            const Center(
               child: Text(
                 '© 2026 GrainHero Inc. All rights reserved.',
                 style: TextStyle(
                   fontSize: 12,
-                  color: AppTheme.textHint,
+                  color: _textTertiary,
                 ),
               ),
             ),
             const SizedBox(height: 16),
           ],
+        ),
         ),
       ),
     );
@@ -126,15 +140,15 @@ class PrivacyPolicyScreen extends StatelessWidget {
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
-              color: AppTheme.textPrimary,
+              color: _primaryDark,
             ),
           ),
           const SizedBox(height: 8),
           Text(
             content,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 14,
-              color: AppTheme.textSecondary,
+              color: _textDark,
               height: 1.6,
             ),
           ),

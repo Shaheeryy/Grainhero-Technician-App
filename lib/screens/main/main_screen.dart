@@ -6,6 +6,7 @@ import '../actuators/actuators_screen.dart';
 import '../profile/profile_screen.dart';
 import '../silos/silos_screen.dart';
 import '../../config/app_theme.dart';
+import '../../widgets/common/app_toast.dart';
 import 'widgets/bottom_navigation.dart';
 
 class MainScreen extends StatefulWidget {
@@ -93,17 +94,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     if (_lastBackPress == null ||
         now.difference(_lastBackPress!) > const Duration(seconds: 2)) {
       _lastBackPress = now;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Press back again to exit'),
-          backgroundColor: AppTheme.surfaceColor,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-          ),
-        ),
-      );
+      AppToast.show(context, 'Press back again to exit');
       return false;
     }
 

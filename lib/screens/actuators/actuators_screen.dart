@@ -5,6 +5,7 @@ import '../../models/actuator_model.dart';
 import '../../services/actuator_service.dart';
 import '../../widgets/common/error_widget.dart';
 import '../../widgets/common/empty_state_widget.dart';
+import '../../widgets/common/app_toast.dart';
 
 class ActuatorsScreen extends StatefulWidget {
   const ActuatorsScreen({super.key});
@@ -99,9 +100,7 @@ class _ActuatorsScreenState extends State<ActuatorsScreen> {
         });
         final msg = e.toString().replaceAll('Exception: ', '');
         if (!msg.contains('_no_actuator_in_response')) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Failed: $msg'), backgroundColor: AppTheme.errorColor, behavior: SnackBarBehavior.floating,
-          ));
+          AppToast.show(context, 'Failed: $msg', isError: true);
         } else {
           // Server didn't return actuator but action succeeded - refresh
           _loadActuators();
@@ -320,7 +319,7 @@ class _ActuatorsScreenState extends State<ActuatorsScreen> {
               final idx = _actuators.indexWhere((a) => a.id == actuator.id);
               if (idx != -1) _actuators[idx] = actuator;
             });
-            if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: ${e.toString().replaceAll('Exception: ', '')}'), backgroundColor: AppTheme.errorColor, behavior: SnackBarBehavior.floating));
+            if (mounted) AppToast.show(context, 'Failed: ${e.toString().replaceAll('Exception: ', '')}', isError: true);
           }
         },
       ),

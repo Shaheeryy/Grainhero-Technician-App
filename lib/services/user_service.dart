@@ -12,17 +12,14 @@ class UserService {
     if (user == null) throw Exception('Not authenticated');
 
     try {
-      final profileData = await _supabase
-          .from('profiles')
-          .select()
-          .eq('id', user.id)
-          .single();
-
-      final roleData = await _supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', user.id)
-          .maybeSingle();
+      // No FK relationship exists between profiles/user_roles, so these
+      // can't be a single embedded select — run in parallel instead.
+      final results = await Future.wait([
+        _supabase.from('profiles').select().eq('id', user.id).single(),
+        _supabase.from('user_roles').select('role').eq('user_id', user.id).maybeSingle(),
+      ]);
+      final profileData = results[0]!;
+      final roleData = results[1];
 
       profileData['role'] = roleData?['role'] ?? 'technician';
       profileData['id'] = user.id;
@@ -58,35 +55,6 @@ class UserService {
     } catch (e) {
       debugPrint('Error updating profile: $e');
       throw Exception('Failed to update profile');
-    }
-  }
-
-  /// Change Password
-  Future<bool> changePassword({
-    required String currentPassword,
-    required String newPassword,
-    required String confirmPassword,
-  }) async {
-    final user = _supabase.auth.currentUser;
-    if (user == null) throw Exception('Not authenticated');
-
-    if (newPassword != confirmPassword) {
-      throw Exception('Passwords do not match');
-    }
-
-    try {
-      // Note: Supabase auth.updateUser does not require the current password by default.
-      // If we want to strictly verify current password, we could call signInWithPassword first,
-      // or rely on the backend enforcing it if Secure Password Change is enabled in Supabase settings.
-      await _supabase.auth.updateUser(
-        UserAttributes(password: newPassword),
-      );
-      return true;
-    } on AuthException catch (e) {
-      throw Exception(e.message);
-    } catch (e) {
-      debugPrint('Error changing password: $e');
-      throw Exception('Failed to change password');
     }
   }
 
