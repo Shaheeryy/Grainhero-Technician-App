@@ -1,11 +1,41 @@
 import 'package:flutter/material.dart';
-import '../../config/app_theme.dart';
+import '../../config/grainhero_colors.dart';
 import '../../models/sensor_model.dart';
 import '../../services/sensor_service.dart';
 import '../../widgets/common/error_widget.dart';
-import '../../widgets/common/empty_state_widget.dart';
-import '../../widgets/common/status_badge.dart';
 import 'sensor_detail_screen.dart';
+
+enum _SensorStatusFilter {
+  all,
+  active,
+  offline,
+  maintenance,
+  error,
+  needsAttention,
+  recentlyUpdated,
+}
+
+extension on _SensorStatusFilter {
+  String get label => switch (this) {
+        _SensorStatusFilter.all => 'All',
+        _SensorStatusFilter.active => 'Active',
+        _SensorStatusFilter.offline => 'Offline',
+        _SensorStatusFilter.maintenance => 'Maintenance',
+        _SensorStatusFilter.error => 'Error',
+        _SensorStatusFilter.needsAttention => 'Needs attention',
+        _SensorStatusFilter.recentlyUpdated => 'Recently updated',
+      };
+}
+
+Color _statusFilterColor(_SensorStatusFilter status) => switch (status) {
+      _SensorStatusFilter.active => LegalPageColors.primaryDark,
+      _SensorStatusFilter.maintenance => const Color(0xFF8A6510),
+      _SensorStatusFilter.offline => LegalPageColors.mutedText,
+      _SensorStatusFilter.error => const Color(0xFFBA1A1A),
+      _SensorStatusFilter.needsAttention => const Color(0xFF8A6510),
+      _SensorStatusFilter.recentlyUpdated => LegalPageColors.primaryDark,
+      _SensorStatusFilter.all => LegalPageColors.brandDark,
+    };
 
 class SensorsScreen extends StatefulWidget {
   const SensorsScreen({super.key});
@@ -24,7 +54,15 @@ class _SensorsScreenState extends State<SensorsScreen> {
   bool _hasMore = true;
   String? _selectedStatus;
   String? _selectedSiloId;
+
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+  final ScrollController _scrollController = ScrollController();
+
+  Set<_SensorStatusFilter> _selectedStatuses = {_SensorStatusFilter.all};
+  bool _isRefreshing = false;
+  bool _isSearchExpanded = false;
+  DateTime _lastSyncedAt = DateTime.now();
 
   @override
   void initState() {
@@ -35,6 +73,8 @@ class _SensorsScreenState extends State<SensorsScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _searchFocusNode.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -68,6 +108,7 @@ class _SensorsScreenState extends State<SensorsScreen> {
         final pagination = result['pagination'] as Map<String, dynamic>;
         _hasMore = (pagination['current_page'] ?? 1) < (pagination['total_pages'] ?? 1);
         _loading = false;
+        _lastSyncedAt = DateTime.now();
       });
     } catch (e) {
       if (!mounted) return;
@@ -85,22 +126,137 @@ class _SensorsScreenState extends State<SensorsScreen> {
     }
   }
 
-  /// Group sensors by silo name.
-  Map<String, List<SensorDevice>> get _groupedSensors {
-    final query = _searchController.text.toLowerCase();
-    final filtered = query.isEmpty
-        ? _sensors
-        : _sensors.where((s) =>
-            s.deviceName.toLowerCase().contains(query) ||
-            s.deviceId.toLowerCase().contains(query) ||
-            (s.siloName?.toLowerCase().contains(query) ?? false)).toList();
+  List<SensorDevice> get _visibleSensors {
+    final String query = _searchController.text.trim().toLowerCase();
+    return _sensors.where((sensor) {
+      final bool matchesStatus = _selectedStatuses.contains(_SensorStatusFilter.all) ||
+          (_selectedStatuses.contains(_SensorStatusFilter.active) &&
+              (sensor.status.toLowerCase() == 'active' || sensor.connectionStatus == 'online')) ||
+          (_selectedStatuses.contains(_SensorStatusFilter.offline) &&
+              (sensor.status.toLowerCase() == 'offline' || sensor.connectionStatus == 'offline')) ||
+          (_selectedStatuses.contains(_SensorStatusFilter.maintenance) &&
+              sensor.status.toLowerCase() == 'maintenance') ||
+          (_selectedStatuses.contains(_SensorStatusFilter.error) &&
+              (sensor.status.toLowerCase() == 'error' || sensor.status.toLowerCase() == 'critical')) ||
+          (_selectedStatuses.contains(_SensorStatusFilter.needsAttention) &&
+              (sensor.status.toLowerCase() == 'maintenance' ||
+                  sensor.status.toLowerCase() == 'error' ||
+                  sensor.status.toLowerCase() == 'critical')) ||
+          (_selectedStatuses.contains(_SensorStatusFilter.recentlyUpdated) &&
+              _wasRecentlyUpdated(sensor));
 
-    final grouped = <String, List<SensorDevice>>{};
-    for (final sensor in filtered) {
-      final siloName = sensor.siloName ?? 'Unassigned';
-      grouped.putIfAbsent(siloName, () => []).add(sensor);
+      final bool matchesQuery = query.isEmpty ||
+          sensor.deviceName.toLowerCase().contains(query) ||
+          sensor.deviceId.toLowerCase().contains(query) ||
+          (sensor.siloName?.toLowerCase().contains(query) ?? false);
+
+      return matchesStatus && matchesQuery;
+    }).toList(growable: false);
+  }
+
+  bool _wasRecentlyUpdated(SensorDevice sensor) {
+    if (sensor.lastReadingTime == null) return false;
+    final diff = DateTime.now().difference(sensor.lastReadingTime!);
+    return diff.inMinutes <= 15;
+  }
+
+  void _clearAllFilters() {
+    _searchController.clear();
+    _searchFocusNode.unfocus();
+    setState(() {
+      _selectedStatuses = {_SensorStatusFilter.all};
+      _selectedStatus = null;
+    });
+    _loadSensors(refresh: true);
+  }
+
+  Future<void> _refreshSensors() async {
+    if (_isRefreshing) return;
+    setState(() => _isRefreshing = true);
+    await _loadSensors(refresh: true);
+    if (!mounted) return;
+    setState(() {
+      _isRefreshing = false;
+      _lastSyncedAt = DateTime.now();
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text('Sensor status refreshed'),
+        duration: const Duration(milliseconds: 1500),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      ),
+    );
+  }
+
+  Future<void> _openSensorDetails(SensorDevice sensor) async {
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    if (!mounted) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (context) => SensorDetailScreen(
+          sensorId: sensor.id,
+          initialName: sensor.deviceName,
+          initialSiloName: sensor.siloName,
+          initialStatus: sensor.status,
+          initialLastUpdated: _formatTimeAgo(sensor.lastReadingTime),
+        ),
+      ),
+    );
+  }
+
+  void _toggleSearch() {
+    if (_isSearchExpanded) {
+      _searchController.clear();
+      _searchFocusNode.unfocus();
+      setState(() => _isSearchExpanded = false);
+      return;
     }
-    return grouped;
+
+    setState(() => _isSearchExpanded = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _searchFocusNode.requestFocus();
+    });
+  }
+
+  Future<void> _toggleStatusFilter(_SensorStatusFilter status) async {
+    if (status != _SensorStatusFilter.all &&
+        _scrollController.hasClients &&
+        _scrollController.offset > 8) {
+      await _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOutCubic,
+      );
+      if (!mounted) return;
+    }
+
+    setState(() {
+      if (status == _SensorStatusFilter.all) {
+        _selectedStatuses = {_SensorStatusFilter.all};
+        _selectedStatus = null;
+        return;
+      }
+      _selectedStatuses.remove(_SensorStatusFilter.all);
+      if (_selectedStatuses.contains(status)) {
+        _selectedStatuses.remove(status);
+      } else {
+        _selectedStatuses.add(status);
+      }
+      if (_selectedStatuses.isEmpty) {
+        _selectedStatuses = {_SensorStatusFilter.all};
+        _selectedStatus = null;
+      } else {
+        _selectedStatus = status.name;
+      }
+    });
+  }
+
+  String get _lastSyncedLabel {
+    final Duration elapsed = DateTime.now().difference(_lastSyncedAt);
+    if (elapsed.inMinutes < 1) return 'Just now';
+    if (elapsed.inHours < 1) return '${elapsed.inMinutes}m ago';
+    return '${elapsed.inHours}h ago';
   }
 
   String _formatTimeAgo(DateTime? date) {
@@ -115,616 +271,973 @@ class _SensorsScreenState extends State<SensorsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => FocusScope.of(context).unfocus(),
-      child: Scaffold(
-        backgroundColor: AppTheme.backgroundColor,
-        appBar: AppBar(
-          backgroundColor: AppTheme.surfaceColor,
-          elevation: 0,
-          title: const Text(
-            'Sensors',
-            style: TextStyle(fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
-          ),
-          actions: [
-            IconButton(
-              icon: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: _selectedStatus != null
-                      ? AppTheme.primaryColor.withValues(alpha: 0.1)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  Icons.filter_list,
-                  color: _selectedStatus != null
-                      ? AppTheme.primaryColor
-                      : AppTheme.textSecondary,
-                  size: 20,
-                ),
-              ),
-              onPressed: _showFilterSheet,
-            ),
-            const SizedBox(width: 8),
-          ],
-        ),
-        body: Column(
-          children: [
-            // Search Bar
-            Container(
-              color: AppTheme.surfaceColor,
-              padding: const EdgeInsets.fromLTRB(
-                AppTheme.spacingL, 0, AppTheme.spacingL, AppTheme.spacingL,
-              ),
-              child: TextField(
-                controller: _searchController,
-                style: const TextStyle(fontSize: 14),
-                decoration: InputDecoration(
-                  hintText: 'Search sensors by name or ID...',
-                  hintStyle: const TextStyle(color: AppTheme.textHint, fontSize: 14),
-                  prefixIcon: const Icon(Icons.search, color: AppTheme.textSecondary, size: 20),
-                  suffixIcon: _searchController.text.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear, size: 18),
-                          onPressed: () {
-                            _searchController.clear();
-                            setState(() {});
-                          },
-                        )
-                      : null,
-                  filled: true,
-                  fillColor: AppTheme.backgroundColor,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                ),
-                onChanged: (value) => setState(() {}),
-              ),
-            ),
+    final List<SensorDevice> visibleSensors = _visibleSensors;
+    final int siloCount =
+        _sensors.map((sensor) => sensor.siloName ?? 'Unassigned').toSet().length;
+    final int onlineCount = _sensors
+        .where(
+          (sensor) =>
+              sensor.status.toLowerCase() == 'active' ||
+              sensor.connectionStatus == 'online' ||
+              sensor.status.toLowerCase() == 'maintenance',
+        )
+        .length;
 
-            // Active filter chips
-            if (_selectedStatus != null)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppTheme.spacingL,
-                  vertical: AppTheme.spacingS,
-                ),
-                child: Wrap(
-                  spacing: 8,
-                  children: [
-                    Chip(
-                      label: Text('Status: $_selectedStatus', style: const TextStyle(fontSize: 12)),
-                      deleteIcon: const Icon(Icons.close, size: 16),
-                      onDeleted: () {
-                        setState(() => _selectedStatus = null);
-                        _loadSensors(refresh: true);
-                      },
-                      backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
-                      labelStyle: const TextStyle(color: AppTheme.primaryColor),
-                      deleteIconColor: AppTheme.primaryColor,
+    return Scaffold(
+      backgroundColor: LegalPageColors.pageBackground,
+      body: SafeArea(
+        bottom: false,
+        child: _loading && _sensors.isEmpty
+            ? const Center(
+                child: CircularProgressIndicator(color: LegalPageColors.primaryDark),
+              )
+            : _error != null
+                ? AppErrorWidget(
+                    message: _error!,
+                    onRetry: () => _loadSensors(refresh: true),
+                  )
+                : CustomScrollView(
+                    controller: _scrollController,
+                    physics: const AlwaysScrollableScrollPhysics(
+                      parent: BouncingScrollPhysics(),
                     ),
-                  ],
-                ),
-              ),
-
-            // Content
-            Expanded(
-              child: _loading && _sensors.isEmpty
-                  ? const Center(
-                      child: CircularProgressIndicator(color: AppTheme.primaryColor),
-                    )
-                  : _error != null
-                      ? AppErrorWidget(
-                          message: _error!,
-                          onRetry: () => _loadSensors(refresh: true),
-                        )
-                      : _sensors.isEmpty
-                          ? EmptyStateWidget(
-                              icon: Icons.sensors,
-                              title: 'No Sensors Found',
-                              subtitle: 'No sensors match your filters',
-                              onRetry: () => _loadSensors(refresh: true),
-                            )
-                          : RefreshIndicator(
-                              onRefresh: () => _loadSensors(refresh: true),
-                              color: AppTheme.primaryColor,
-                              child: _buildGroupedList(),
+                    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                    slivers: [
+                      SliverToBoxAdapter(
+                        child: _SensorsHeader(
+                          isRefreshing: _isRefreshing || _loading,
+                          onRefreshPressed: _refreshSensors,
+                          isSearchExpanded: _isSearchExpanded,
+                          onSearchPressed: _toggleSearch,
+                        ),
+                      ),
+                      SliverToBoxAdapter(
+                        child: AnimatedSize(
+                          duration: const Duration(milliseconds: 180),
+                          curve: Curves.easeOutCubic,
+                          alignment: Alignment.topCenter,
+                          child: _isSearchExpanded
+                              ? Padding(
+                                  padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
+                                  child: _SensorSearchBar(
+                                    controller: _searchController,
+                                    focusNode: _searchFocusNode,
+                                    onChanged: (_) => setState(() {}),
+                                    onClear: () {
+                                      _searchController.clear();
+                                      setState(() {});
+                                    },
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+                      ),
+                      if (!_isSearchExpanded)
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                          sliver: SliverToBoxAdapter(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _SensorOverview(
+                                  siloCount: siloCount,
+                                  sensorCount: _sensors.length,
+                                  onlineCount: onlineCount,
+                                ),
+                                const SizedBox(height: 8),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.sync_rounded,
+                                        size: 14,
+                                        color: LegalPageColors.primaryDark,
+                                      ),
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        'Last synced: $_lastSyncedLabel',
+                                        style: const TextStyle(
+                                          color: LegalPageColors.mainText,
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
-            ),
-          ],
-        ),
+                          ),
+                        ),
+                      SliverPersistentHeader(
+                        pinned: true,
+                        delegate: _PinnedSensorFilterHeader(
+                          child: _SensorFilterStrip(
+                            selectedStatuses: _selectedStatuses,
+                            onStatusSelected: _toggleStatusFilter,
+                          ),
+                        ),
+                      ),
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
+                        sliver: SliverToBoxAdapter(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              if (visibleSensors.isEmpty)
+                                Transform.translate(
+                                  offset: const Offset(0, 2),
+                                  child: SizedBox(
+                                    height: MediaQuery.sizeOf(context).height * 0.46,
+                                    child: _EmptySensorsState(onClear: _clearAllFilters),
+                                  ),
+                                )
+                              else
+                                ..._buildSensorGroups(visibleSensors),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
       ),
     );
   }
 
-  Widget _buildGroupedList() {
-    final grouped = _groupedSensors;
-    if (grouped.isEmpty) {
-      return Center(
-        child: Text(
-          'No sensors match "${_searchController.text}"',
-          style: const TextStyle(color: AppTheme.textSecondary),
-        ),
-      );
+  List<Widget> _buildSensorGroups(List<SensorDevice> sensors) {
+    final Map<String, List<SensorDevice>> grouped = {};
+    for (final sensor in sensors) {
+      final siloName = sensor.siloName ?? 'Unassigned';
+      grouped.putIfAbsent(siloName, () => []).add(sensor);
     }
 
-    final siloNames = grouped.keys.toList()..sort();
+    return [
+      for (final entry in grouped.entries) ...[
+        _SiloHeading(name: entry.key, count: entry.value.length),
+        const SizedBox(height: 14),
+        for (int index = 0; index < entry.value.length; index++) ...[
+          _SensorCard(
+            sensor: entry.value[index],
+            formattedTimeAgo: _formatTimeAgo(entry.value[index].lastReadingTime),
+            onTap: () => _openSensorDetails(entry.value[index]),
+          ),
+          if (index != entry.value.length - 1) const SizedBox(height: 12),
+        ],
+        if (entry.key != grouped.keys.last) const SizedBox(height: 28),
+      ],
+      if (_hasMore) ...[
+        const SizedBox(height: 20),
+        Center(
+          child: TextButton.icon(
+            onPressed: _loadMore,
+            icon: const Icon(Icons.arrow_downward, size: 16),
+            label: const Text('Load More Sensors'),
+            style: TextButton.styleFrom(
+              foregroundColor: LegalPageColors.primaryDark,
+            ),
+          ),
+        ),
+      ],
+    ];
+  }
+}
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(AppTheme.spacingL),
-      itemCount: siloNames.length + (_hasMore ? 1 : 0),
-      itemBuilder: (context, index) {
-        if (index == siloNames.length) {
-          if (_hasMore) {
-            _loadMore();
-            return const Center(
-              child: Padding(
-                padding: EdgeInsets.all(AppTheme.spacingL),
-                child: CircularProgressIndicator(color: AppTheme.primaryColor),
-              ),
-            );
-          }
-          return const SizedBox.shrink();
-        }
+class _SensorsHeader extends StatelessWidget {
+  const _SensorsHeader({
+    required this.isRefreshing,
+    required this.onRefreshPressed,
+    required this.isSearchExpanded,
+    required this.onSearchPressed,
+  });
 
-        final siloName = siloNames[index];
-        final sensors = grouped[siloName]!;
+  final bool isRefreshing;
+  final VoidCallback onRefreshPressed;
+  final bool isSearchExpanded;
+  final VoidCallback onSearchPressed;
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Silo header
-            Padding(
-              padding: EdgeInsets.only(
-                bottom: AppTheme.spacingM,
-                top: index > 0 ? AppTheme.spacingXL : 0,
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(AppTheme.radiusSmall),
-                    ),
-                    child: const Icon(Icons.domain, size: 18, color: AppTheme.primaryColor),
-                  ),
-                  const SizedBox(width: AppTheme.spacingM),
-                  Expanded(
-                    child: Text(
-                      siloName,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppTheme.dividerColor,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      '${sensors.length}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: AppTheme.textSecondary,
-                      ),
-                    ),
-                  ),
-                ],
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 16, 10),
+      child: Row(
+        children: [
+          const Expanded(
+            child: Text(
+              'Sensors',
+              style: TextStyle(
+                color: LegalPageColors.brandDark,
+                fontSize: 28,
+                height: 1.2,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.6,
               ),
             ),
+          ),
+          IconButton(
+            onPressed: onSearchPressed,
+            tooltip: isSearchExpanded ? 'Close search' : 'Search sensors',
+            style: IconButton.styleFrom(
+              fixedSize: const Size(44, 44),
+              foregroundColor: LegalPageColors.primaryDark,
+              backgroundColor: LegalPageColors.surface,
+              shape: const CircleBorder(),
+            ),
+            icon: Icon(
+              isSearchExpanded ? Icons.close_rounded : Icons.search_rounded,
+              size: 23,
+            ),
+          ),
+          const SizedBox(width: 8),
+          _SensorRefreshButton(
+            isRefreshing: isRefreshing,
+            onPressed: onRefreshPressed,
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-            // Sensor cards for this silo
-            ...sensors.map((sensor) => _buildSensorCard(sensor)),
-          ],
+class _SensorRefreshButton extends StatelessWidget {
+  const _SensorRefreshButton({
+    required this.isRefreshing,
+    required this.onPressed,
+  });
+
+  final bool isRefreshing;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: isRefreshing ? null : onPressed,
+      tooltip: 'Refresh sensors',
+      style: IconButton.styleFrom(
+        fixedSize: const Size(44, 44),
+        foregroundColor: Colors.white,
+        disabledForegroundColor: Colors.white,
+        backgroundColor: LegalPageColors.brandDark,
+        disabledBackgroundColor: LegalPageColors.brandDark,
+        shape: const CircleBorder(),
+      ),
+      icon: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 250),
+        child: isRefreshing
+            ? const SizedBox(
+                key: ValueKey('loading'),
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.4,
+                  color: Colors.white,
+                ),
+              )
+            : const Icon(
+                Icons.refresh_rounded,
+                key: ValueKey('refresh'),
+                size: 23,
+              ),
+      ),
+    );
+  }
+}
+
+class _PinnedSensorFilterHeader extends SliverPersistentHeaderDelegate {
+  _PinnedSensorFilterHeader({required this.child});
+
+  final Widget child;
+
+  @override
+  double get minExtent => 56;
+
+  @override
+  double get maxExtent => 56;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return Material(
+      color: LegalPageColors.pageBackground,
+      elevation: overlapsContent ? 2 : 0,
+      shadowColor: LegalPageColors.brandDark.withValues(alpha: 0.10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: child,
+      ),
+    );
+  }
+
+  @override
+  bool shouldRebuild(_PinnedSensorFilterHeader oldDelegate) => child != oldDelegate.child;
+}
+
+class _SensorFilterStrip extends StatelessWidget {
+  const _SensorFilterStrip({
+    required this.selectedStatuses,
+    required this.onStatusSelected,
+  });
+
+  final Set<_SensorStatusFilter> selectedStatuses;
+  final ValueChanged<_SensorStatusFilter> onStatusSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      itemCount: _SensorStatusFilter.values.length,
+      separatorBuilder: (context, index) => const SizedBox(width: 8),
+      itemBuilder: (context, index) {
+        final status = _SensorStatusFilter.values[index];
+        final isSelected = selectedStatuses.contains(status);
+        final color = _statusFilterColor(status);
+
+        return FilterChip(
+          selected: isSelected,
+          label: Text(status.label),
+          onSelected: (_) => onStatusSelected(status),
+          elevation: isSelected ? 1 : 0,
+          pressElevation: 2,
+          selectedColor: LegalPageColors.brandDark,
+          backgroundColor: LegalPageColors.surface,
+          checkmarkColor: Colors.white,
+          side: BorderSide(
+            color: isSelected
+                ? LegalPageColors.brandDark
+                : LegalPageColors.outline.withValues(alpha: 0.36),
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          labelStyle: TextStyle(
+            color: isSelected ? Colors.white : LegalPageColors.brandDark,
+            fontSize: 12.5,
+            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+          ),
+          avatar: isSelected || status == _SensorStatusFilter.all
+              ? null
+              : Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                ),
         );
       },
     );
   }
+}
 
-  Widget _buildSensorCard(SensorDevice sensor) {
-    final reading = sensor.latestReading;
-    final isOnline = sensor.connectionStatus == 'online';
+class _SensorOverview extends StatelessWidget {
+  const _SensorOverview({
+    required this.siloCount,
+    required this.sensorCount,
+    required this.onlineCount,
+  });
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: AppTheme.spacingM),
-      decoration: AppTheme.cardDecoration,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => SensorDetailScreen(sensorId: sensor.id),
-              ),
-            );
-          },
-          borderRadius: BorderRadius.circular(AppTheme.radiusLarge),
-          child: Padding(
-            padding: const EdgeInsets.all(AppTheme.spacingL),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header row: icon, name, device_id, status, connection
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(AppTheme.radiusMedium),
-                      ),
-                      child: const Icon(Icons.sensors, color: AppTheme.primaryColor, size: 22),
-                    ),
-                    const SizedBox(width: AppTheme.spacingM),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            sensor.deviceName,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: AppTheme.textPrimary,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            sensor.deviceId,
-                            style: const TextStyle(fontSize: 11, color: AppTheme.textHint),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Connection dot
-                    Container(
-                      width: 8,
-                      height: 8,
-                      margin: const EdgeInsets.only(right: 8),
-                      decoration: BoxDecoration(
-                        color: isOnline ? AppTheme.successColor : AppTheme.errorColor,
-                        shape: BoxShape.circle,
-                        boxShadow: isOnline
-                            ? [BoxShadow(color: AppTheme.successColor.withValues(alpha: 0.4), blurRadius: 4)]
-                            : null,
-                      ),
-                    ),
-                    StatusBadge(status: sensor.status, isCompact: true),
-                  ],
-                ),
+  final int siloCount;
+  final int sensorCount;
+  final int onlineCount;
 
-                const SizedBox(height: AppTheme.spacingM),
-
-                // Sensor type chips
-                if (sensor.sensorTypes.isNotEmpty)
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    children: sensor.sensorTypes.map((type) {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: _getSensorTypeColor(type).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(
-                            color: _getSensorTypeColor(type).withValues(alpha: 0.3),
-                            width: 0.5,
-                          ),
-                        ),
-                        child: Text(
-                          _getSensorTypeLabel(type),
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                            color: _getSensorTypeColor(type),
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-
-                const SizedBox(height: AppTheme.spacingM),
-
-                // Live metric values in a 2x2 grid
-                _buildMetricsGrid(sensor, reading),
-
-                const SizedBox(height: AppTheme.spacingM),
-                const Divider(height: 1),
-                const SizedBox(height: AppTheme.spacingM),
-
-                // Footer: battery, signal, last reading time
-                Row(
-                  children: [
-                    if (sensor.batteryLevel != null) ...[
-                      Icon(
-                        _getBatteryIcon(sensor.batteryLevel!),
-                        size: 14,
-                        color: sensor.batteryLevel! < 20
-                            ? AppTheme.errorColor
-                            : AppTheme.textSecondary,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${sensor.batteryLevel}%',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: sensor.batteryLevel! < 20
-                              ? AppTheme.errorColor
-                              : AppTheme.textHint,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                    ],
-                    if (sensor.signalStrength != null) ...[
-                      Icon(Icons.signal_cellular_alt, size: 14, color: AppTheme.textHint),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${sensor.signalStrength} dBm',
-                        style: const TextStyle(fontSize: 11, color: AppTheme.textHint),
-                      ),
-                    ],
-                    const Spacer(),
-                    Icon(Icons.access_time, size: 14, color: AppTheme.textHint),
-                    const SizedBox(width: 4),
-                    Text(
-                      _formatTimeAgo(sensor.lastReadingTime),
-                      style: const TextStyle(fontSize: 11, color: AppTheme.textHint),
-                    ),
-                  ],
-                ),
-              ],
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: LegalPageColors.surface,
+      elevation: 1,
+      shadowColor: LegalPageColors.brandDark.withValues(alpha: 0.06),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+        side: BorderSide(color: LegalPageColors.outline.withValues(alpha: 0.28)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        child: Row(
+          children: [
+            _OverviewItem(
+              label: 'Silos',
+              value: '$siloCount',
+              icon: Icons.domain_rounded,
             ),
-          ),
+            _OverviewDivider(),
+            _OverviewItem(
+              label: 'Total sensors',
+              value: '$sensorCount',
+              icon: Icons.sensors_rounded,
+            ),
+            _OverviewDivider(),
+            _OverviewItem(
+              label: 'Online',
+              value: '$onlineCount',
+              icon: Icons.wifi_rounded,
+              valueColor: LegalPageColors.primaryDark,
+            ),
+          ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildMetricsGrid(SensorDevice sensor, SensorReading? reading) {
-    final metrics = <Widget>[];
+class _OverviewItem extends StatelessWidget {
+  const _OverviewItem({
+    required this.label,
+    required this.value,
+    required this.icon,
+    this.valueColor,
+  });
 
-    if (sensor.latestTemperature != null) {
-      metrics.add(_buildMetricItem(
-        icon: Icons.thermostat_outlined,
-        color: AppTheme.temperatureOrange,
-        value: '${sensor.latestTemperature!.toStringAsFixed(1)}°C',
-        label: 'Temp',
-      ));
-    }
-    if (sensor.latestHumidity != null) {
-      metrics.add(_buildMetricItem(
-        icon: Icons.water_drop_outlined,
-        color: AppTheme.humidityBlue,
-        value: '${sensor.latestHumidity!.toStringAsFixed(1)}%',
-        label: 'Humidity',
-      ));
-    }
-    if (sensor.latestVoc != null) {
-      metrics.add(_buildMetricItem(
-        icon: Icons.science_outlined,
-        color: const Color(0xFFAB47BC),
-        value: '${sensor.latestVoc!.toStringAsFixed(0)} ppb',
-        label: 'VOC',
-      ));
-    }
-    if (sensor.latestMoisture != null) {
-      metrics.add(_buildMetricItem(
-        icon: Icons.grain,
-        color: const Color(0xFF26A69A),
-        value: '${sensor.latestMoisture!.toStringAsFixed(1)}%',
-        label: 'Moisture',
-      ));
-    }
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color? valueColor;
 
-    if (metrics.isEmpty) {
-      return Container(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: const Text(
-          'No readings available',
-          style: TextStyle(fontSize: 12, color: AppTheme.textHint),
-        ),
-      );
-    }
-
-    return Row(children: metrics.map((m) => Expanded(child: m)).toList());
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        children: [
+          Icon(icon, size: 20, color: LegalPageColors.primaryDark),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: TextStyle(
+              color: valueColor ?? LegalPageColors.brandDark,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: LegalPageColors.mutedText,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
   }
+}
 
-  Widget _buildMetricItem({
-    required IconData icon,
-    required Color color,
-    required String value,
-    required String label,
-  }) {
+class _OverviewDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 42,
+      color: LegalPageColors.outline.withValues(alpha: 0.28),
+    );
+  }
+}
+
+class _SensorSearchBar extends StatelessWidget {
+  const _SensorSearchBar({
+    required this.controller,
+    required this.focusNode,
+    required this.onChanged,
+    required this.onClear,
+  });
+
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      focusNode: focusNode,
+      onChanged: onChanged,
+      style: const TextStyle(
+        color: LegalPageColors.brandDark,
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+      ),
+      decoration: InputDecoration(
+        hintText: 'Search by sensor name, ID or silo...',
+        hintStyle: const TextStyle(
+          color: LegalPageColors.mutedText,
+          fontSize: 13.5,
+          fontWeight: FontWeight.w500,
+        ),
+        prefixIcon: const Icon(
+          Icons.search_rounded,
+          color: LegalPageColors.primaryDark,
+          size: 20,
+        ),
+        suffixIcon: controller.text.isNotEmpty
+            ? IconButton(
+                icon: const Icon(Icons.close_rounded, size: 18),
+                onPressed: onClear,
+                color: LegalPageColors.mutedText,
+              )
+            : null,
+        filled: true,
+        fillColor: LegalPageColors.surface,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide(color: LegalPageColors.outline.withValues(alpha: 0.32)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: BorderSide(color: LegalPageColors.outline.withValues(alpha: 0.32)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: const BorderSide(color: LegalPageColors.primaryDark, width: 1.5),
+        ),
+      ),
+    );
+  }
+}
+
+class _SiloHeading extends StatelessWidget {
+  const _SiloHeading({required this.name, required this.count});
+
+  final String name;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
     return Row(
-      mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 18, color: color),
-        const SizedBox(width: 4),
-        Flexible(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-              Text(
-                label,
-                style: const TextStyle(fontSize: 9, color: AppTheme.textSecondary),
-              ),
-            ],
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: LegalPageColors.tonedEggshell,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: const Icon(
+            Icons.domain_rounded,
+            color: LegalPageColors.primaryDark,
+            size: 18,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          name,
+          style: const TextStyle(
+            color: LegalPageColors.brandDark,
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+          decoration: BoxDecoration(
+            color: LegalPageColors.outline.withValues(alpha: 0.25),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(
+            '$count',
+            style: const TextStyle(
+              color: LegalPageColors.brandDark,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w800,
+            ),
           ),
         ),
       ],
     );
   }
+}
 
-  Color _getSensorTypeColor(String type) {
-    switch (type.toLowerCase()) {
-      case 'temperature':
-        return AppTheme.temperatureOrange;
-      case 'humidity':
-        return AppTheme.humidityBlue;
-      case 'voc':
-        return const Color(0xFFAB47BC);
-      case 'moisture':
-        return const Color(0xFF26A69A);
-      case 'co2':
-        return const Color(0xFFFF7043);
+class _SensorCard extends StatelessWidget {
+  const _SensorCard({
+    required this.sensor,
+    required this.formattedTimeAgo,
+    required this.onTap,
+  });
+
+  final SensorDevice sensor;
+  final String formattedTimeAgo;
+  final VoidCallback onTap;
+
+  Color _statusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'active':
+      case 'online':
+        return LegalPageColors.primaryDark;
+      case 'maintenance':
+        return const Color(0xFF8A6510);
+      case 'offline':
+        return LegalPageColors.mutedText;
+      case 'error':
+      case 'critical':
+        return const Color(0xFFBA1A1A);
       default:
-        return AppTheme.textSecondary;
+        return LegalPageColors.brandDark;
     }
   }
 
-  String _getSensorTypeLabel(String type) {
-    switch (type.toLowerCase()) {
-      case 'temperature':
-        return '🌡️ Temp';
-      case 'humidity':
-        return '💧 Humidity';
-      case 'voc':
-        return '🧪 VOC';
-      case 'moisture':
-        return '🌾 Moisture';
-      case 'co2':
-        return '☁️ CO₂';
-      default:
-        return type;
-    }
-  }
+  @override
+  Widget build(BuildContext context) {
+    final statusColor = _statusColor(sensor.status);
+    final temp = sensor.latestTemperature != null
+        ? '${sensor.latestTemperature!.toStringAsFixed(1)}°C'
+        : null;
+    final hum = sensor.latestHumidity != null
+        ? '${sensor.latestHumidity!.toStringAsFixed(1)}%'
+        : null;
+    final moist = sensor.latestMoisture != null
+        ? '${sensor.latestMoisture!.toStringAsFixed(1)}%'
+        : null;
+    final voc = sensor.latestVoc != null
+        ? '${sensor.latestVoc!.toStringAsFixed(0)} ppb'
+        : null;
 
-  IconData _getBatteryIcon(int level) {
-    if (level > 80) return Icons.battery_full;
-    if (level > 50) return Icons.battery_5_bar;
-    if (level > 20) return Icons.battery_3_bar;
-    return Icons.battery_1_bar;
-  }
-
-  void _showFilterSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => Container(
-        decoration: const BoxDecoration(
-          color: AppTheme.surfaceColor,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    return Material(
+      color: LegalPageColors.surface,
+      surfaceTintColor: Colors.transparent,
+      elevation: 1,
+      shadowColor: LegalPageColors.brandDark.withValues(alpha: 0.06),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+        side: BorderSide(
+          color: LegalPageColors.outline.withValues(alpha: 0.28),
         ),
-        padding: const EdgeInsets.all(AppTheme.spacingXL),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppTheme.dividerColor,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        overlayColor: WidgetStateProperty.all(
+          LegalPageColors.primaryDark.withValues(alpha: 0.05),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: LegalPageColors.tonedEggshell,
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: const Icon(
+                      Icons.sensors_rounded,
+                      color: LegalPageColors.primaryDark,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          sensor.deviceName,
+                          style: const TextStyle(
+                            color: LegalPageColors.brandDark,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          sensor.deviceId,
+                          style: const TextStyle(
+                            color: LegalPageColors.mutedText,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.6,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 7,
+                            height: 7,
+                            decoration: BoxDecoration(
+                              color: statusColor,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            sensor.status.toUpperCase(),
+                            style: TextStyle(
+                              color: statusColor,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        formattedTimeAgo,
+                        style: const TextStyle(
+                          color: LegalPageColors.mutedText,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: AppTheme.spacingXL),
-            const Text(
-              'Filter Sensors',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
-            ),
-            const SizedBox(height: AppTheme.spacingXL),
-            const Text(
-              'Status',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppTheme.textSecondary),
-            ),
-            const SizedBox(height: AppTheme.spacingM),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                _buildFilterChip('All', null),
-                _buildFilterChip('Active', 'active'),
-                _buildFilterChip('Offline', 'offline'),
-                _buildFilterChip('Maintenance', 'maintenance'),
-                _buildFilterChip('Error', 'error'),
-              ],
-            ),
-            const SizedBox(height: AppTheme.spacingXXL),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () {
-                      setState(() => _selectedStatus = null);
-                      Navigator.pop(context);
-                      _loadSensors(refresh: true);
-                    },
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+              const SizedBox(height: 14),
+              _SensorMetricsGrid(
+                temp: temp,
+                humidity: hum,
+                moisture: moist,
+                voc: voc,
+              ),
+              if (sensor.batteryLevel != null || sensor.signalStrength != null) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    if (sensor.batteryLevel != null) ...[
+                      Icon(
+                        sensor.batteryLevel! < 20
+                            ? Icons.battery_alert_rounded
+                            : Icons.battery_charging_full_rounded,
+                        size: 14,
+                        color: sensor.batteryLevel! < 20
+                            ? const Color(0xFFBA1A1A)
+                            : LegalPageColors.mutedText,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${sensor.batteryLevel}%',
+                        style: TextStyle(
+                          color: sensor.batteryLevel! < 20
+                              ? const Color(0xFFBA1A1A)
+                              : LegalPageColors.mutedText,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                    ],
+                    if (sensor.signalStrength != null) ...[
+                      const Icon(
+                        Icons.signal_cellular_alt_rounded,
+                        size: 14,
+                        color: LegalPageColors.mutedText,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${sensor.signalStrength} dBm',
+                        style: const TextStyle(
+                          color: LegalPageColors.mutedText,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                    const Spacer(),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      size: 18,
+                      color: LegalPageColors.mutedText,
                     ),
-                    child: const Text('Clear All'),
-                  ),
-                ),
-                const SizedBox(width: AppTheme.spacingM),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _loadSensors(refresh: true);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    child: const Text('Apply'),
-                  ),
+                  ],
                 ),
               ],
-            ),
-            SizedBox(height: MediaQuery.of(context).padding.bottom),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
+}
 
-  Widget _buildFilterChip(String label, String? value) {
-    final isSelected = _selectedStatus == value;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedStatus = value),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AppTheme.primaryColor.withValues(alpha: 0.1)
-              : AppTheme.backgroundColor,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? AppTheme.primaryColor : AppTheme.dividerColor,
-            width: 1.5,
-          ),
+class _SensorMetricsGrid extends StatelessWidget {
+  const _SensorMetricsGrid({
+    this.temp,
+    this.humidity,
+    this.moisture,
+    this.voc,
+  });
+
+  final String? temp;
+  final String? humidity;
+  final String? moisture;
+  final String? voc;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double itemWidth = (constraints.maxWidth - 10) / 2;
+        return Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            _MetricTile(
+              width: itemWidth,
+              icon: Icons.thermostat_rounded,
+              label: 'Temp',
+              value: temp ?? 'N/A',
+            ),
+            _MetricTile(
+              width: itemWidth,
+              icon: Icons.water_drop_rounded,
+              label: 'Humidity',
+              value: humidity ?? 'N/A',
+            ),
+            _MetricTile(
+              width: itemWidth,
+              icon: Icons.water_rounded,
+              label: 'Moisture',
+              value: moisture ?? 'N/A',
+            ),
+            _MetricTile(
+              width: itemWidth,
+              icon: Icons.science_rounded,
+              label: 'VOC',
+              value: voc ?? 'N/A',
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _MetricTile extends StatelessWidget {
+  const _MetricTile({
+    required this.width,
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final double width;
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: LegalPageColors.tonedEggshell,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: LegalPageColors.outline.withValues(alpha: 0.32),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-            color: isSelected ? AppTheme.primaryColor : AppTheme.textSecondary,
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: LegalPageColors.primaryDark, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: LegalPageColors.mutedText,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: LegalPageColors.brandDark,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptySensorsState extends StatelessWidget {
+  const _EmptySensorsState({required this.onClear});
+
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: LegalPageColors.tonedEggshell,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.sensors_off_rounded,
+              size: 34,
+              color: LegalPageColors.mutedText,
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            'No sensors match filter',
+            style: TextStyle(
+              color: LegalPageColors.brandDark,
+              fontSize: 18,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Try clearing your search query or status filter.',
+            style: TextStyle(
+              color: LegalPageColors.mutedText,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 20),
+          ElevatedButton.icon(
+            onPressed: onClear,
+            icon: const Icon(Icons.filter_alt_off_rounded, size: 18),
+            label: const Text('Reset filters'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: LegalPageColors.brandDark,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ),
+          ),
+        ],
       ),
     );
   }

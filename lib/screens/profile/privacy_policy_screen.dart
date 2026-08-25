@@ -1,159 +1,221 @@
 import 'package:flutter/material.dart';
 
-class PrivacyPolicyScreen extends StatelessWidget {
-  const PrivacyPolicyScreen({super.key});
+import 'legal_page_components.dart';
 
-  static const _pageBg = Color(0xFFFEFAE4);
-  static const _textDark = Color(0xFF1D1C0F);
-  static const _textTertiary = Color(0xFF536256);
-  static const _primaryDark = Color(0xFF176E00);
+class AboutAppPrivacyPolicyPage extends StatelessWidget {
+  const AboutAppPrivacyPolicyPage({super.key});
+
+  static const List<LegalSectionData> _sections = [
+    LegalSectionData(
+      title: '1. Information We Collect',
+      blocks: [
+        LegalBlock.paragraph(
+          'Depending on the features you use, we may collect:',
+        ),
+        LegalBlock.disclosure(
+          'Account information',
+          items: [
+            'Name',
+            'Email address',
+            'Phone number',
+            'Technician ID, organization or role',
+            'Login and authentication information',
+          ],
+        ),
+        LegalBlock.disclosure(
+          'Operational information',
+          items: [
+            'Assigned farms, facilities and silos',
+            'Device serial numbers and equipment identifiers',
+            'Installation, inspection and maintenance records',
+            'Technician notes and completion status',
+            'Grain or silo condition readings',
+            'Fault reports and diagnostic information',
+          ],
+        ),
+        LegalBlock.disclosure(
+          'Photos and files',
+          supportingText:
+              'With your permission, the app may access the camera or selected files to upload:',
+          items: [
+            'Installation evidence',
+            'Device-condition photographs',
+            'Equipment labels',
+            'Maintenance documentation',
+          ],
+        ),
+        LegalBlock.disclosure(
+          'Location information',
+          supportingText:
+              'The current version of GrainHero Technician does not request device-location permission or collect precise, approximate or background location.',
+          footerText:
+              'Assigned farm, facility and silo names may appear as operational records, but they are not obtained from your device’s location services.',
+        ),
+        LegalBlock.disclosure(
+          'Device and usage information',
+          supportingText: 'We may collect:',
+          items: [
+            'Device model and operating-system version',
+            'Application version',
+            'IP address',
+            'Login history',
+            'Crash reports',
+            'Performance and diagnostic logs',
+          ],
+        ),
+      ],
+    ),
+    LegalSectionData(
+      title: '2. How We Use Information',
+      blocks: [
+        LegalBlock.paragraph('We use information to:'),
+        LegalBlock.bullets([
+          'Authenticate and manage technician accounts.',
+          'Assign installation and maintenance work.',
+          'Configure and monitor GrainHero equipment.',
+          'Maintain service and inspection records.',
+          'Diagnose faults and provide technical support.',
+          'Improve application reliability and security.',
+          'Send operational alerts and notifications.',
+          'Prevent fraud, misuse and unauthorized access.',
+          'Meet contractual, safety and legal obligations.',
+        ]),
+      ],
+    ),
+    LegalSectionData(
+      title: '3. How Information Is Shared',
+      blocks: [
+        LegalBlock.paragraph('Information may be shared with:'),
+        LegalBlock.bullets([
+          'Authorized GrainHero employees and administrators.',
+          'Customers whose sites or equipment you service.',
+          'Approved cloud, authentication, mapping, notification and technical-support providers.',
+          'Authorities when disclosure is legally required.',
+          'A successor organization in connection with a merger, acquisition or business transfer.',
+        ]),
+        LegalBlock.paragraph('We do not sell technician personal information.'),
+        LegalBlock.paragraph(
+          'Service providers should only receive the information necessary to perform services on GrainHero’s behalf.',
+        ),
+      ],
+    ),
+    LegalSectionData(
+      title: '4. Application Permissions',
+      blocks: [
+        LegalBlock.paragraph('The app may request access to:'),
+        LegalBlock.bullets([
+          'Camera: To capture installation and maintenance photographs.',
+          'Photos and files: To upload supporting documentation.',
+          'Bluetooth or nearby devices: To connect with supported GrainHero equipment.',
+          'Notifications: To deliver assignments, alerts and service updates.',
+        ]),
+        LegalBlock.paragraph(
+          'Permissions can be managed through your device settings. Disabling a required permission may prevent certain features from working.',
+        ),
+      ],
+    ),
+    LegalSectionData(
+      title: '5. Data Retention',
+      blocks: [
+        LegalBlock.paragraph(
+          'We retain information for as long as necessary to:',
+        ),
+        LegalBlock.bullets([
+          'Maintain technician and service records.',
+          'Support GrainHero customers and equipment.',
+          'Meet contractual, security and legal obligations.',
+          'Resolve disputes and investigate incidents.',
+        ]),
+        LegalBlock.paragraph(
+          'Information that is no longer required will be deleted, anonymized or securely archived according to GrainHero’s retention procedures.',
+        ),
+      ],
+    ),
+    LegalSectionData(
+      title: '6. Data Security',
+      blocks: [
+        LegalBlock.paragraph(
+          'We use reasonable administrative, technical and organizational safeguards, including access controls, authentication, secure communications and system monitoring.',
+        ),
+        LegalBlock.paragraph(
+          'No electronic system is completely secure. Immediately report suspected account compromise or unauthorized access.',
+        ),
+      ],
+    ),
+    LegalSectionData(
+      title: '7. Your Choices and Rights',
+      blocks: [
+        LegalBlock.paragraph(
+          'Subject to applicable law and organizational requirements, you may request to:',
+        ),
+        LegalBlock.bullets([
+          'Access personal information held about you.',
+          'Correct inaccurate or incomplete information.',
+          'Delete information that is no longer required.',
+          'Restrict or object to certain processing.',
+          'Withdraw optional permissions.',
+          'Receive information about how your data is handled.',
+        ]),
+        LegalBlock.paragraph(
+          'Some operational records may need to be retained for security, contractual or legal purposes.',
+        ),
+      ],
+    ),
+    LegalSectionData(
+      title: '8. Children’s Privacy',
+      blocks: [
+        LegalBlock.paragraph(
+          'GrainHero Technician is intended for authorized professional users and is not directed to children.',
+        ),
+      ],
+    ),
+    LegalSectionData(
+      title: '9. International Processing',
+      blocks: [
+        LegalBlock.paragraph(
+          'Information may be processed using service providers or infrastructure located outside your country. Where applicable, GrainHero will use appropriate safeguards for such transfers.',
+        ),
+      ],
+    ),
+    LegalSectionData(
+      title: '10. Changes to This Policy',
+      blocks: [
+        LegalBlock.paragraph(
+          'We may update this policy when our application, technology or data practices change. The latest version will be available inside the app.',
+        ),
+      ],
+    ),
+    LegalSectionData(
+      title: '11. Contact Us',
+      blocks: [
+        LegalBlock.paragraph(
+          'For privacy questions or data requests, contact:',
+        ),
+        LegalBlock.paragraph(
+          'GrainHero Systems Inc.\nNASTP, Rawalpindi, Pakistan',
+        ),
+        LegalBlock.email(
+          'privacy@grainhero.com',
+          label: 'Privacy requests',
+          isPrimary: true,
+        ),
+        LegalBlock.email('support@grainhero.com', label: 'General support'),
+      ],
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _pageBg,
-      appBar: AppBar(
-        backgroundColor: _pageBg,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: _textDark),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          'Privacy Policy',
-          style: TextStyle(color: _textDark, fontSize: 20, fontWeight: FontWeight.w600),
-        ),
-        centerTitle: false,
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Privacy Policy',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: _textDark,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Last updated: April 2026',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: _textTertiary,
-                ),
-              ),
-              const SizedBox(height: 24),
-            _buildSection(
-              '1. Information We Collect',
-              'We collect information you provide directly to us, including your name, email address, phone number, and professional credentials when you create an account. We also collect data from sensors and devices connected through the App, including environmental readings (temperature, humidity, air quality) and equipment status information.',
-            ),
-            _buildSection(
-              '2. How We Use Your Information',
-              'We use the information we collect to:\n'
-              '• Provide and maintain the GrainHero Technician service\n'
-              '• Monitor and optimize grain storage conditions\n'
-              '• Send alerts and notifications about storage conditions\n'
-              '• Authenticate your identity and manage your account\n'
-              '• Improve our services and develop new features\n'
-              '• Comply with legal obligations',
-            ),
-            _buildSection(
-              '3. Data Storage & Security',
-              'Your data is stored securely on cloud servers with industry-standard encryption. We implement appropriate technical and organizational measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction. Authentication tokens are stored securely on your device using encrypted storage.',
-            ),
-            _buildSection(
-              '4. Data Sharing',
-              'We do not sell, trade, or rent your personal information to third parties. We may share data with:\n'
-              '• Your organization\'s administrators for management purposes\n'
-              '• Service providers who assist in operating our platform\n'
-              '• Law enforcement when required by law\n\n'
-              'Sensor and environmental data may be shared within your organization for monitoring and compliance purposes.',
-            ),
-            _buildSection(
-              '5. Sensor & Device Data',
-              'The App collects real-time data from connected IoT sensors and devices, including temperature, humidity, TVOC/CO2 levels, and equipment operational status. This data is used solely for grain storage monitoring and is associated with your organization\'s account.',
-            ),
-            _buildSection(
-              '6. Data Retention',
-              'We retain your personal information for as long as your account is active or as needed to provide services. Sensor data and environmental readings are retained according to your organization\'s data retention policies. You may request deletion of your personal data by contacting your administrator.',
-            ),
-            _buildSection(
-              '7. Your Rights',
-              'You have the right to:\n'
-              '• Access your personal information\n'
-              '• Correct inaccurate data\n'
-              '• Request deletion of your account\n'
-              '• Export your data in a portable format\n'
-              '• Withdraw consent for data processing\n\n'
-              'To exercise these rights, contact your organization administrator or reach out to us directly.',
-            ),
-            _buildSection(
-              '8. Cookies & Local Storage',
-              'The App uses secure local storage to maintain your authentication session and user preferences. No tracking cookies or third-party analytics are used within the mobile application.',
-            ),
-            _buildSection(
-              '9. Children\'s Privacy',
-              'The App is not intended for use by individuals under 18 years of age. We do not knowingly collect personal information from children.',
-            ),
-            _buildSection(
-              '10. Changes to This Policy',
-              'We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new policy within the App and updating the "Last updated" date. Your continued use of the App after any changes constitutes acceptance of the updated policy.',
-            ),
-            _buildSection(
-              '11. Contact Us',
-              'If you have any questions about this Privacy Policy or our data practices, please contact us at:\n\n'
-              'Email: privacy@grainhero.com\n'
-              'GrainHero Inc.',
-            ),
-            const SizedBox(height: 32),
-            const Center(
-              child: Text(
-                '© 2026 GrainHero Inc. All rights reserved.',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: _textTertiary,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-          ],
-        ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSection(String title, String content) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              color: _primaryDark,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            content,
-            style: const TextStyle(
-              fontSize: 14,
-              color: _textDark,
-              height: 1.6,
-            ),
-          ),
-        ],
-      ),
+    return const LegalDocumentPage(
+      title: 'Privacy Policy',
+      icon: Icons.shield_outlined,
+      effectiveDate: '11 August 2026',
+      lastUpdated: '11 August 2026',
+      bodyFontWeight: FontWeight.w400,
+      showSectionNavigator: true,
+      introduction:
+          'GrainHero Systems Inc. respects your privacy. This Privacy Policy explains how information is collected, used, stored and shared when you use the GrainHero Technician application.',
+      sections: _sections,
     );
   }
 }

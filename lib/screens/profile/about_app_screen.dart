@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'terms_of_service_screen.dart';
 import 'privacy_policy_screen.dart';
+import 'open_source_licenses_screen.dart';
+import '../../config/grainhero_colors.dart';
+import '../../config/typography.dart';
 
 class AboutAppScreen extends StatefulWidget {
   const AboutAppScreen({super.key});
@@ -36,25 +39,20 @@ class _AboutAppScreenState extends State<AboutAppScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const pageBg = Color(0xFFFEFAE4);
-    const textDark = Color(0xFF1D1C0F);
-    const textTertiary = Color(0xFF536256);
-    const primaryDark = Color(0xFF176E00);
-
     return Scaffold(
-      backgroundColor: pageBg,
+      backgroundColor: GrainHeroColors.pageBackground,
       appBar: AppBar(
-        backgroundColor: pageBg,
+        backgroundColor: GrainHeroColors.pageBackground,
         elevation: 0,
         scrolledUnderElevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded, color: textDark),
+          icon: const Icon(Icons.arrow_back_rounded, color: GrainHeroColors.dark),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text(
+        title: Text(
           'About GrainHero',
-          style: TextStyle(
-            color: textDark,
+          style: AppTypography.headingStyle(
+            color: GrainHeroColors.dark,
             fontSize: 20,
             fontWeight: FontWeight.w600,
           ),
@@ -107,7 +105,7 @@ class _AboutAppScreenState extends State<AboutAppScreen> {
                                 return const Icon(
                                   Icons.eco_rounded,
                                   size: 48,
-                                  color: primaryDark,
+                                  color: GrainHeroColors.primaryDark,
                                 );
                               },
                             ),
@@ -116,15 +114,14 @@ class _AboutAppScreenState extends State<AboutAppScreen> {
                         const SizedBox(height: 20),
 
                         // App Name
-                        const Text(
+                        Text(
                           'GrainHero Technician',
                           textAlign: TextAlign.center,
-                          style: TextStyle(
+                          style: AppTypography.headingStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
-                            color: textDark,
-                            letterSpacing: -0.2,
-                          ),
+                            color: GrainHeroColors.dark,
+                          ).copyWith(letterSpacing: -0.2),
                         ),
                         const SizedBox(height: 10),
 
@@ -137,21 +134,20 @@ class _AboutAppScreenState extends State<AboutAppScreen> {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: primaryDark.withValues(alpha: 0.1),
+                              color: GrainHeroColors.primaryDark.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                color: primaryDark.withValues(alpha: 0.2),
+                                color: GrainHeroColors.primaryDark.withValues(alpha: 0.2),
                                 width: 1,
                               ),
                             ),
                             child: Text(
                               'v$_version',
-                              style: const TextStyle(
-                                color: primaryDark,
+                              style: AppTypography.bodyStyle(
+                                color: GrainHeroColors.primaryDark,
                                 fontWeight: FontWeight.w600,
                                 fontSize: 12,
-                                letterSpacing: 0.3,
-                              ),
+                              ).copyWith(letterSpacing: 0.3),
                             ),
                           ),
                         ),
@@ -182,7 +178,7 @@ class _AboutAppScreenState extends State<AboutAppScreen> {
                             Navigator.push(
                               context,
                               MaterialPageRoute(
-                                builder: (_) => const PrivacyPolicyScreen(),
+                                builder: (_) => const AboutAppPrivacyPolicyPage(),
                               ),
                             );
                           },
@@ -194,10 +190,11 @@ class _AboutAppScreenState extends State<AboutAppScreen> {
                           subtitle: 'Third party software notice',
                           icon: Icons.verified_outlined,
                           onTap: () {
-                            showLicensePage(
-                              context: context,
-                              applicationName: 'GrainHero Technician',
-                              applicationVersion: 'v$_version',
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const OpenSourceLicensesScreen(),
+                              ),
                             );
                           },
                         ),
@@ -209,23 +206,23 @@ class _AboutAppScreenState extends State<AboutAppScreen> {
                     Padding(
                       padding: const EdgeInsets.only(bottom: 12, top: 16),
                       child: Column(
-                        children: const [
+                        children: [
                           Text(
                             '© 2024 GrainHero Systems Inc.',
-                            style: TextStyle(
+                            style: AppTypography.bodyStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
-                              color: textDark,
+                              color: GrainHeroColors.dark,
                             ),
                           ),
-                          SizedBox(height: 4),
+                          const SizedBox(height: 4),
                           Text(
                             'Main Office, Portland OR',
-                            style: TextStyle(
+                            style: AppTypography.bodyStyle(
                               fontSize: 12,
-                              fontStyle: FontStyle.italic,
-                              color: textTertiary,
-                            ),
+                              fontWeight: FontWeight.w400,
+                              color: GrainHeroColors.mutedText,
+                            ).copyWith(fontStyle: FontStyle.italic),
                           ),
                         ],
                       ),
@@ -247,16 +244,12 @@ class _AboutAppScreenState extends State<AboutAppScreen> {
     required IconData icon,
     required VoidCallback onTap,
   }) {
-    const textDark = Color(0xFF1D1C0F);
-    const textTertiary = Color(0xFF536256);
-    const primaryDark = Color(0xFF176E00);
-
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: const Color(0xFFBDCBB3).withValues(alpha: 0.3),
+          color: GrainHeroColors.outline.withValues(alpha: 0.3),
           width: 1,
         ),
         boxShadow: [
@@ -273,8 +266,8 @@ class _AboutAppScreenState extends State<AboutAppScreen> {
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(16),
-          splashColor: primaryDark.withValues(alpha: 0.08),
-          highlightColor: primaryDark.withValues(alpha: 0.04),
+          splashColor: GrainHeroColors.primaryDark.withValues(alpha: 0.08),
+          highlightColor: GrainHeroColors.primaryDark.withValues(alpha: 0.04),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Row(
@@ -284,12 +277,12 @@ class _AboutAppScreenState extends State<AboutAppScreen> {
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: primaryDark.withValues(alpha: 0.1),
+                    color: GrainHeroColors.primaryDark.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
                     icon,
-                    color: primaryDark,
+                    color: GrainHeroColors.primaryDark,
                     size: 24,
                   ),
                 ),
@@ -301,18 +294,19 @@ class _AboutAppScreenState extends State<AboutAppScreen> {
                     children: [
                       Text(
                         title,
-                        style: const TextStyle(
+                        style: AppTypography.headingStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
-                          color: textDark,
+                          color: GrainHeroColors.dark,
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
                         subtitle,
-                        style: const TextStyle(
+                        style: AppTypography.bodyStyle(
                           fontSize: 12,
-                          color: textTertiary,
+                          color: GrainHeroColors.mutedText,
+                          fontWeight: FontWeight.w500,
                           height: 1.3,
                         ),
                       ),
@@ -322,7 +316,7 @@ class _AboutAppScreenState extends State<AboutAppScreen> {
                 // Chevron icon
                 const Icon(
                   Icons.chevron_right_rounded,
-                  color: textTertiary,
+                  color: GrainHeroColors.mutedText,
                   size: 24,
                 ),
               ],
