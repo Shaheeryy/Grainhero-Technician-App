@@ -173,6 +173,7 @@ class LegalDocumentPage extends StatefulWidget {
   State<LegalDocumentPage> createState() => _LegalDocumentPageState();
 }
 
+
 class _LegalDocumentPageState extends State<LegalDocumentPage> {
   late List<GlobalKey> _sectionKeys;
 

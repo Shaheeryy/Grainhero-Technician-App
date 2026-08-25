@@ -16,4 +16,19 @@ class GrainHeroColors {
   static const Color outline = Color(0xFFBDCBB3);
   static const Color tonedEggshell = Color(0xFFF5F3E8);
   static const Color error = Color(0xFFBA1A1A);
+  static const Color stone = Color(0xFFE2DEC9);
+}
+
+abstract class LegalPageColors {
+  static const Color brandDark = GrainHeroColors.dark;
+  static const Color primaryDark = GrainHeroColors.primaryDark;
+  static const Color primary = GrainHeroColors.primary;
+  static const Color pageBackground = GrainHeroColors.pageBackground;
+  static const Color surface = GrainHeroColors.surface;
+  static const Color mainText = GrainHeroColors.bodyText;
+  static const Color mutedText = GrainHeroColors.mutedText;
+  static const Color outline = GrainHeroColors.outline;
+  static const Color tonedEggshell = GrainHeroColors.tonedEggshell;
+  static const Color error = GrainHeroColors.error;
+  static const Color stone = GrainHeroColors.stone;
 }

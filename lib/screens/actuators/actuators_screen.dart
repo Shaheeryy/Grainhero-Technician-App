@@ -5,15 +5,18 @@ import '../../config/typography.dart';
 import '../../models/actuator_model.dart';
 import '../../services/actuator_service.dart';
 import '../../widgets/common/error_widget.dart';
-import '../../widgets/common/empty_state_widget.dart';
 
-// =====================================================
-// Actuators Screen (Redesigned Presentation Layer)
-// Preserves 100% of underlying state management, API calls,
-// optimistic updates, toggle callbacks, power level changes,
-// and detail modal logic while updating visual presentation
-// to match the app design system.
-// =====================================================
+enum _ActuatorFilter { all, running, stopped, needsAttention, recentlyUpdated }
+
+extension on _ActuatorFilter {
+  String get label => switch (this) {
+    _ActuatorFilter.all => 'All',
+    _ActuatorFilter.running => 'Running',
+    _ActuatorFilter.stopped => 'Stopped',
+    _ActuatorFilter.needsAttention => 'Needs attention',
+    _ActuatorFilter.recentlyUpdated => 'Recently updated',
+  };
+}
 
 class ActuatorsScreen extends StatefulWidget {
   const ActuatorsScreen({super.key});
@@ -28,10 +31,23 @@ class _ActuatorsScreenState extends State<ActuatorsScreen> {
   String? _error;
   final Set<String> _togglingIds = {};
 
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+  bool _isSearchExpanded = false;
+  Set<_ActuatorFilter> _selectedFilters = {_ActuatorFilter.all};
+  DateTime _lastSyncedAt = DateTime.now();
+
   @override
   void initState() {
     super.initState();
     _loadActuators();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    super.dispose();
   }
 
   Future<void> _loadActuators() async {
@@ -45,6 +61,7 @@ class _ActuatorsScreenState extends State<ActuatorsScreen> {
         setState(() {
           _actuators = result['actuators'] as List<ActuatorModel>;
           _isLoading = false;
+          _lastSyncedAt = DateTime.now();
         });
       }
     } catch (e) {
@@ -166,13 +183,87 @@ class _ActuatorsScreenState extends State<ActuatorsScreen> {
     }
   }
 
-  Map<String, List<ActuatorModel>> get _grouped {
+  bool _needsAttention(ActuatorModel actuator) {
+    return actuator.healthMetrics.errorCount > 0 ||
+        actuator.maintenanceStatus.toUpperCase() == 'DUE SOON' ||
+        actuator.maintenanceStatus.toUpperCase() == 'REVIEW';
+  }
+
+  bool _wasRecentlyUpdated(ActuatorModel actuator) {
+    if (actuator.healthMetrics.lastHeartbeat == null) return false;
+    return DateTime.now().difference(actuator.healthMetrics.lastHeartbeat!).inMinutes < 60;
+  }
+
+  bool _matchesFilter(ActuatorModel actuator) {
+    if (_selectedFilters.contains(_ActuatorFilter.all)) return true;
+    final isRunning = actuator.isOn;
+    return (isRunning && _selectedFilters.contains(_ActuatorFilter.running)) ||
+        (!isRunning && _selectedFilters.contains(_ActuatorFilter.stopped)) ||
+        (_needsAttention(actuator) && _selectedFilters.contains(_ActuatorFilter.needsAttention)) ||
+        (_wasRecentlyUpdated(actuator) && _selectedFilters.contains(_ActuatorFilter.recentlyUpdated));
+  }
+
+  bool _matchesQuery(ActuatorModel actuator) {
+    final String query = _searchController.text.trim().toLowerCase();
+    if (query.isEmpty) return true;
+    return actuator.name.toLowerCase().contains(query) ||
+        actuator.actuatorId.toLowerCase().contains(query) ||
+        (actuator.siloName?.toLowerCase().contains(query) ?? false);
+  }
+
+  List<ActuatorModel> get _filteredActuators {
+    return _actuators.where((a) => _matchesFilter(a) && _matchesQuery(a)).toList();
+  }
+
+  Map<String, List<ActuatorModel>> get _groupedFiltered {
     final map = <String, List<ActuatorModel>>{};
-    for (final a in _actuators) {
+    for (final a in _filteredActuators) {
       final silo = a.siloName ?? 'Unassigned';
       map.putIfAbsent(silo, () => []).add(a);
     }
     return map;
+  }
+
+  void _toggleFilter(_ActuatorFilter filter) {
+    setState(() {
+      if (filter == _ActuatorFilter.all) {
+        _selectedFilters = {_ActuatorFilter.all};
+        return;
+      }
+      _selectedFilters.remove(_ActuatorFilter.all);
+      if (_selectedFilters.contains(filter)) {
+        _selectedFilters.remove(filter);
+      } else {
+        _selectedFilters.add(filter);
+      }
+      if (_selectedFilters.isEmpty) _selectedFilters = {_ActuatorFilter.all};
+    });
+  }
+
+  void _toggleSearch() {
+    if (_isSearchExpanded) {
+      _searchController.clear();
+      _searchFocusNode.unfocus();
+      setState(() => _isSearchExpanded = false);
+      return;
+    }
+    setState(() => _isSearchExpanded = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _searchFocusNode.requestFocus();
+    });
+  }
+
+  void _clearSearchAndFilters() {
+    _searchController.clear();
+    _searchFocusNode.unfocus();
+    setState(() => _selectedFilters = {_ActuatorFilter.all});
+  }
+
+  String get _lastSyncedLabel {
+    final Duration elapsed = DateTime.now().difference(_lastSyncedAt);
+    if (elapsed.inMinutes < 1) return 'Just now';
+    if (elapsed.inHours < 1) return '${elapsed.inMinutes}m ago';
+    return '${elapsed.inHours}h ago';
   }
 
   String _timeAgo(DateTime? d) {
@@ -236,82 +327,139 @@ class _ActuatorsScreenState extends State<ActuatorsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final int totalSilos = _grouped.keys.length;
+    final int totalSilos = _actuators.map((a) => a.siloName ?? 'Unassigned').toSet().length;
     final int totalActuators = _actuators.length;
     final int onlineCount = _actuators.where((a) => a.isOn).length;
 
+    final int runningCount = _actuators.where((a) => a.isOn).length;
+    final int attentionCount = _actuators.where(_needsAttention).length;
+    final int recentCount = _actuators.where(_wasRecentlyUpdated).length;
+
+    final groupedFiltered = _groupedFiltered;
+
     return Scaffold(
       backgroundColor: GrainHeroColors.pageBackground,
-      body: RefreshIndicator(
-        color: GrainHeroColors.primary,
-        backgroundColor: GrainHeroColors.surface,
-        onRefresh: _loadActuators,
-        child: CustomScrollView(
-          physics: const AlwaysScrollableScrollPhysics(
-            parent: BouncingScrollPhysics(),
-          ),
-          slivers: [
-            // Custom Header App Bar
-            SliverToBoxAdapter(
-              child: _ActuatorsHeader(
-                isLoading: _isLoading,
-                onRefreshPressed: _loadActuators,
-              ),
+      body: SafeArea(
+        bottom: false,
+        child: RefreshIndicator(
+          color: GrainHeroColors.primary,
+          backgroundColor: GrainHeroColors.surface,
+          onRefresh: _loadActuators,
+          child: ListView(
+            padding: EdgeInsets.zero,
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            physics: const AlwaysScrollableScrollPhysics(
+              parent: BouncingScrollPhysics(),
             ),
-
-            if (_isLoading)
-              const SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(
-                  child: CircularProgressIndicator(
-                    color: GrainHeroColors.primaryDark,
-                  ),
+            children: [
+              _ActuatorsHeader(
+                isRefreshing: _isLoading,
+                onRefreshPressed: _loadActuators,
+                isSearchExpanded: _isSearchExpanded,
+                onSearchPressed: _toggleSearch,
+              ),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOutCubic,
+                alignment: Alignment.topCenter,
+                child: _isSearchExpanded
+                    ? Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 2, 16, 8),
+                        child: _ActuatorSearchBar(
+                          controller: _searchController,
+                          focusNode: _searchFocusNode,
+                          onChanged: (_) => setState(() {}),
+                          onClear: () {
+                            _searchController.clear();
+                            setState(() {});
+                          },
+                        ),
+                      )
+                    : const SizedBox.shrink(),
+              ),
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  _isSearchExpanded ? 0 : 12,
+                  16,
+                  40,
                 ),
-              )
-            else if (_error != null)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: AppErrorWidget(
-                  message: _error!,
-                  onRetry: _loadActuators,
-                ),
-              )
-            else if (_actuators.isEmpty)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: EmptyStateWidget(
-                  icon: Icons.settings_input_component_rounded,
-                  title: 'No Actuators',
-                  subtitle: 'Actuators will appear here once connected',
-                  onRetry: _loadActuators,
-                ),
-              )
-            else
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 40),
-                sliver: SliverList(
-                  delegate: SliverChildListDelegate([
-                    // Global Overview Summary Box
-                    _GlobalOverview(
-                      siloCount: totalSilos,
-                      actuatorCount: totalActuators,
-                      onlineCount: onlineCount,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (!_isSearchExpanded) ...[
+                      _GlobalOverview(
+                        siloCount: totalSilos,
+                        actuatorCount: totalActuators,
+                        onlineCount: onlineCount,
+                      ),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.sync_rounded,
+                              size: 13,
+                              color: GrainHeroColors.mutedText,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Synced $_lastSyncedLabel',
+                              style: AppTypography.bodyStyle(
+                                color: GrainHeroColors.mutedText,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    _ActuatorFilterStrip(
+                      selectedFilters: _selectedFilters,
+                      runningCount: runningCount,
+                      attentionCount: attentionCount,
+                      recentCount: recentCount,
+                      onSelected: _toggleFilter,
                     ),
-                    const SizedBox(height: 24),
-
-                    // Render Grouped Silos & Actuators
-                    ..._buildSiloGroups(),
-                  ]),
+                    const SizedBox(height: 16),
+                    if (_isLoading && _actuators.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 60),
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            color: GrainHeroColors.primaryDark,
+                          ),
+                        ),
+                      )
+                    else if (_error != null && _actuators.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 40),
+                        child: AppErrorWidget(
+                          message: _error!,
+                          onRetry: _loadActuators,
+                        ),
+                      )
+                    else if (groupedFiltered.isEmpty)
+                      _NoMatchingActuatorsCard(
+                        onClear: _clearSearchAndFilters,
+                      )
+                    else
+                      ..._buildSiloGroups(groupedFiltered),
+                  ],
                 ),
               ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  List<Widget> _buildSiloGroups() {
-    final grouped = _grouped;
+  List<Widget> _buildSiloGroups(Map<String, List<ActuatorModel>> grouped) {
     final silos = grouped.keys.toList()..sort();
     final List<Widget> widgets = [];
 
@@ -358,19 +506,21 @@ class _ActuatorsScreenState extends State<ActuatorsScreen> {
 // =====================================================
 class _ActuatorsHeader extends StatelessWidget {
   const _ActuatorsHeader({
-    required this.isLoading,
+    required this.isRefreshing,
     required this.onRefreshPressed,
+    required this.isSearchExpanded,
+    required this.onSearchPressed,
   });
 
-  final bool isLoading;
+  final bool isRefreshing;
   final VoidCallback onRefreshPressed;
+  final bool isSearchExpanded;
+  final VoidCallback onSearchPressed;
 
   @override
   Widget build(BuildContext context) {
-    final double statusBarHeight = MediaQuery.paddingOf(context).top;
-
     return Padding(
-      padding: EdgeInsets.fromLTRB(20, statusBarHeight + 14, 16, 10),
+      padding: const EdgeInsets.fromLTRB(20, 14, 16, 10),
       child: Row(
         children: [
           Expanded(
@@ -385,7 +535,25 @@ class _ActuatorsHeader extends StatelessWidget {
             ),
           ),
           IconButton(
-            onPressed: isLoading ? null : onRefreshPressed,
+            onPressed: onSearchPressed,
+            tooltip: isSearchExpanded ? 'Close search' : 'Search actuators',
+            style: IconButton.styleFrom(
+              fixedSize: const Size(44, 44),
+              foregroundColor: GrainHeroColors.dark,
+              backgroundColor: GrainHeroColors.surface.withValues(alpha: 0.72),
+              side: BorderSide(
+                color: GrainHeroColors.outline.withValues(alpha: 0.34),
+              ),
+              shape: const CircleBorder(),
+            ),
+            icon: Icon(
+              isSearchExpanded ? Icons.close_rounded : Icons.search_rounded,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            onPressed: isRefreshing ? null : onRefreshPressed,
             tooltip: 'Refresh actuators',
             style: IconButton.styleFrom(
               fixedSize: const Size(44, 44),
@@ -399,7 +567,7 @@ class _ActuatorsHeader extends StatelessWidget {
             ),
             icon: AnimatedSwitcher(
               duration: const Duration(milliseconds: 250),
-              child: isLoading
+              child: isRefreshing
                   ? const SizedBox(
                       key: ValueKey('loading'),
                       width: 20,
@@ -417,6 +585,211 @@ class _ActuatorsHeader extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ActuatorSearchBar extends StatelessWidget {
+  const _ActuatorSearchBar({
+    required this.controller,
+    required this.focusNode,
+    required this.onChanged,
+    required this.onClear,
+  });
+
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final bool hasText = controller.text.isNotEmpty;
+    return Container(
+      decoration: BoxDecoration(
+        color: GrainHeroColors.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: GrainHeroColors.outline.withValues(alpha: 0.40),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.search_rounded,
+            color: GrainHeroColors.mutedText,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: controller,
+              focusNode: focusNode,
+              onChanged: onChanged,
+              style: AppTypography.bodyStyle(
+                color: GrainHeroColors.dark,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+              decoration: const InputDecoration(
+                hintText: 'Search by device name, ID, or silo...',
+                hintStyle: TextStyle(
+                  color: GrainHeroColors.mutedText,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+                border: InputBorder.none,
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(vertical: 13),
+              ),
+            ),
+          ),
+          if (hasText)
+            IconButton(
+              onPressed: onClear,
+              icon: const Icon(Icons.cancel_rounded, size: 18),
+              color: GrainHeroColors.mutedText,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActuatorFilterStrip extends StatelessWidget {
+  const _ActuatorFilterStrip({
+    required this.selectedFilters,
+    required this.runningCount,
+    required this.attentionCount,
+    required this.recentCount,
+    required this.onSelected,
+  });
+
+  final Set<_ActuatorFilter> selectedFilters;
+  final int runningCount;
+  final int attentionCount;
+  final int recentCount;
+  final ValueChanged<_ActuatorFilter> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        children: _ActuatorFilter.values.map((filter) {
+          final bool isSelected = selectedFilters.contains(filter);
+          final String label = switch (filter) {
+            _ActuatorFilter.all => filter.label,
+            _ActuatorFilter.running => '${filter.label} ($runningCount)',
+            _ActuatorFilter.stopped => filter.label,
+            _ActuatorFilter.needsAttention =>
+              attentionCount > 0 ? '${filter.label} ($attentionCount)' : filter.label,
+            _ActuatorFilter.recentlyUpdated =>
+              recentCount > 0 ? '${filter.label} ($recentCount)' : filter.label,
+          };
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: FilterChip(
+              selected: isSelected,
+              showCheckmark: false,
+              label: Text(label),
+              labelStyle: AppTypography.bodyStyle(
+                color: isSelected ? Colors.white : GrainHeroColors.bodyText,
+                fontSize: 12,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+              ),
+              backgroundColor: GrainHeroColors.surface,
+              selectedColor: GrainHeroColors.primaryDark,
+              side: BorderSide(
+                color: isSelected
+                    ? GrainHeroColors.primaryDark
+                    : GrainHeroColors.outline.withValues(alpha: 0.38),
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              onSelected: (_) => onSelected(filter),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+class _NoMatchingActuatorsCard extends StatelessWidget {
+  const _NoMatchingActuatorsCard({required this.onClear});
+
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: GrainHeroColors.surface,
+      elevation: 1,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+        side: BorderSide(
+          color: GrainHeroColors.outline.withValues(alpha: 0.28),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
+        child: Column(
+          children: [
+            Container(
+              width: 52,
+              height: 52,
+              decoration: BoxDecoration(
+                color: GrainHeroColors.tonedEggshell,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.search_off_rounded,
+                color: GrainHeroColors.primaryDark,
+                size: 26,
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'No actuators match your search',
+              style: AppTypography.headingStyle(
+                color: GrainHeroColors.dark,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Try adjusting your search query or clear active filters.',
+              textAlign: TextAlign.center,
+              style: AppTypography.bodyStyle(
+                color: GrainHeroColors.mutedText,
+                fontSize: 12.5,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: onClear,
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Reset filters'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: GrainHeroColors.primaryDark,
+                side: const BorderSide(color: GrainHeroColors.primaryDark),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1334,4 +1707,5 @@ class _DetailRow {
   final String label;
   final String value;
 }
+
 
