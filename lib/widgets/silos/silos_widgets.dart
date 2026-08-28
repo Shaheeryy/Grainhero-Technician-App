@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../config/auth_theme.dart';
+import '../../config/grainhero_colors.dart';
 
 class SilosHeader extends StatelessWidget {
   const SilosHeader({
@@ -188,7 +189,7 @@ class _SiloSearchFieldState extends State<SiloSearchField> {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
           color: isFocused
-              ? AuthTheme.primaryGreen.withValues(alpha: 0.85)
+              ? GrainHeroColors.primary.withValues(alpha: 0.85)
               : Colors.white.withValues(alpha: 0.08),
           width: isFocused ? 1.5 : 1,
         ),
@@ -201,7 +202,7 @@ class _SiloSearchFieldState extends State<SiloSearchField> {
           widget.onChanged(value);
           setState(() {});
         },
-        cursorColor: AuthTheme.primaryGreen,
+        cursorColor: GrainHeroColors.primary,
         textAlignVertical: TextAlignVertical.center,
         style: const TextStyle(
           color: Colors.white,
@@ -216,7 +217,7 @@ class _SiloSearchFieldState extends State<SiloSearchField> {
           ),
           prefixIcon: Icon(
             Icons.search_rounded,
-            color: isFocused ? AuthTheme.primaryGreen : Colors.white70,
+            color: isFocused ? GrainHeroColors.primary : Colors.white70,
           ),
           suffixIcon: hasText
               ? IconButton(
@@ -279,7 +280,7 @@ class SiloFilterButton extends StatelessWidget {
                       : Icons.circle_outlined,
                   size: 20,
                   color: isSelected
-                      ? AuthTheme.primaryGreen
+                      ? GrainHeroColors.primary
                       : AuthTheme.textPrimary,
                 ),
                 const SizedBox(width: 12),
@@ -317,7 +318,7 @@ class SiloFilterButton extends StatelessWidget {
             const SizedBox(width: 8),
             const Icon(
               Icons.filter_list_rounded,
-              color: AuthTheme.primaryGreen,
+              color: GrainHeroColors.primary,
               size: 21,
             ),
           ],
@@ -357,7 +358,7 @@ class EmptySilosState extends StatelessWidget {
                 border: Border.all(color: Colors.white.withValues(alpha: 0.75)),
                 boxShadow: [
                   BoxShadow(
-                    color: AuthTheme.primaryGreen.withValues(alpha: 0.08),
+                    color: GrainHeroColors.primary.withValues(alpha: 0.08),
                     blurRadius: 32,
                     offset: const Offset(0, 10),
                   ),
@@ -417,8 +418,8 @@ class EmptySilosState extends StatelessWidget {
               FilledButton.tonalIcon(
                 onPressed: onClearPressed,
                 style: FilledButton.styleFrom(
-                  foregroundColor: AuthTheme.primaryDark,
-                  backgroundColor: AuthTheme.primaryGreen.withValues(
+                  foregroundColor: GrainHeroColors.primaryDark,
+                  backgroundColor: GrainHeroColors.primary.withValues(
                     alpha: 0.14,
                   ),
                   padding: const EdgeInsets.symmetric(
