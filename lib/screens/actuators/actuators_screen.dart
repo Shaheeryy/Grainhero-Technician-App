@@ -590,7 +590,7 @@ class _ActuatorsHeader extends StatelessWidget {
   }
 }
 
-class _ActuatorSearchBar extends StatelessWidget {
+class _ActuatorSearchBar extends StatefulWidget {
   const _ActuatorSearchBar({
     required this.controller,
     required this.focusNode,
@@ -604,30 +604,61 @@ class _ActuatorSearchBar extends StatelessWidget {
   final VoidCallback onClear;
 
   @override
+  State<_ActuatorSearchBar> createState() => _ActuatorSearchBarState();
+}
+
+class _ActuatorSearchBarState extends State<_ActuatorSearchBar> {
+  @override
+  void initState() {
+    super.initState();
+    widget.focusNode.addListener(_onFocusChange);
+  }
+
+  @override
+  void dispose() {
+    widget.focusNode.removeListener(_onFocusChange);
+    super.dispose();
+  }
+
+  void _onFocusChange() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final bool hasText = controller.text.isNotEmpty;
-    return Container(
+    final bool hasText = widget.controller.text.isNotEmpty;
+    final bool isFocused = widget.focusNode.hasFocus;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
       decoration: BoxDecoration(
         color: GrainHeroColors.surface,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: GrainHeroColors.outline.withValues(alpha: 0.40),
+          color: isFocused
+              ? GrainHeroColors.primary
+              : GrainHeroColors.outline.withValues(alpha: 0.40),
+          width: isFocused ? 1.8 : 1.0,
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 14),
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.search_rounded,
-            color: GrainHeroColors.mutedText,
+            color: isFocused ? GrainHeroColors.primary : GrainHeroColors.mutedText,
             size: 20,
           ),
           const SizedBox(width: 10),
           Expanded(
             child: TextField(
-              controller: controller,
-              focusNode: focusNode,
-              onChanged: onChanged,
+              controller: widget.controller,
+              focusNode: widget.focusNode,
+              onChanged: (val) {
+                widget.onChanged(val);
+                setState(() {});
+              },
+              cursorColor: GrainHeroColors.primary,
               style: AppTypography.bodyStyle(
                 color: GrainHeroColors.dark,
                 fontSize: 14,
@@ -648,7 +679,10 @@ class _ActuatorSearchBar extends StatelessWidget {
           ),
           if (hasText)
             IconButton(
-              onPressed: onClear,
+              onPressed: () {
+                widget.onClear();
+                setState(() {});
+              },
               icon: const Icon(Icons.cancel_rounded, size: 18),
               color: GrainHeroColors.mutedText,
               padding: EdgeInsets.zero,

@@ -14,7 +14,8 @@ import 'package:grainhero_technician_app/services/silo_service.dart';
 import 'package:grainhero_technician_app/models/silo_model.dart';
 import 'package:grainhero_technician_app/services/sensor_service.dart';
 import '../qr_scanner/qr_scanner_screen.dart';
-import '../alerts/alerts_screen.dart';
+import '../alerts/notifications_screen.dart';
+import '../../services/notification_center.dart';
 import '../grain_batches/grain_batch_detail_screen.dart';
 import 'package:grainhero_technician_app/services/alert_service.dart';
 import 'widgets/dashboard_header.dart';
@@ -29,6 +30,7 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  final NotificationCenter _notificationCenter = NotificationCenter();
   Map<String, dynamic>? dashboardData;
   UserModel? userProfile;
   int _realSiloCount = 0;
@@ -72,6 +74,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void dispose() {
     _refreshTimer?.cancel();
+    _notificationCenter.dispose();
     super.dispose();
   }
 
@@ -248,7 +251,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ),
                           onAlertsPressed: () => Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => const AlertsScreen()),
+                            MaterialPageRoute(
+                              builder: (_) => NotificationsScreen(
+                                notificationCenter: _notificationCenter,
+                              ),
+                            ),
                           ).then((_) => _fetchDashboard()),
                           silosCount: _realSiloCount,
                           batchesCount: _realBatchCount,
